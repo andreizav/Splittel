@@ -27,9 +27,12 @@ function escapeJsonForScriptTag(data: unknown): string {
 
 export interface RenderBillBoardOptions {
   bill: ParsedBillBoard | null;
+  billId?: string;
   uiActionToken: string;
   apiBaseUrl: string;
   initialTheme?: "light" | "dark";
+  isGuest?: boolean;
+  anonUserId?: string;
 }
 
 /**
@@ -44,10 +47,16 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     ? ` data-theme="${options.initialTheme === "dark" ? "dark" : "light"}"`
     : "";
 
+  const effectiveBillId = options.billId || options.bill?.bill_id || "";
+  const isGuest = options.isGuest ?? true;
+
   const bootstrapPayload = escapeJsonForScriptTag({
     bill: options.bill,
+    billId: effectiveBillId,
     uiActionToken: options.uiActionToken,
     apiBaseUrl: options.apiBaseUrl.replace(/\/+$/, ""),
+    isGuest,
+    anonUserId: options.anonUserId,
   });
 
   const hasInitialBill = options.bill !== null;
@@ -85,10 +94,12 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
               <button
                 type="button"
                 id="copy-share-link-btn"
-                class="${hasInitialBill ? "" : "hidden "}cursor-pointer rounded-full border px-2.5 py-0.5 text-xs font-medium transition hover:opacity-80"
+                class="${hasInitialBill || effectiveBillId ? "" : "hidden "}cursor-pointer inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold transition hover:bg-emerald-500/10 hover:border-emerald-500"
                 style="border-color: var(--border-subtle);"
+                title="Скопировать ссылку на чек для совместного выбора блюд"
               >
-                Share Link
+                <span>🔗</span>
+                <span>Поделиться чеком</span>
               </button>
             </div>
             <h1 id="bill-title" dir="auto" class="bidi-plaintext fluid-bill-title truncate font-bold tracking-tight">${initialTitle
@@ -183,6 +194,19 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     <!-- 2. SCROLLABLE CONTENT CONTAINER (Smooth nested scroll inside Gemini/Search sandboxed iframes) -->
     <main id="app-root" class="bill-scroll-area px-3.5 py-4 sm:px-6 sm:py-5">
       <div class="mx-auto max-w-5xl space-y-4">
+        <!-- Guest Authorization Banner (Section 4.1) -->
+        ${
+          isGuest
+            ? `<div id="guest-auth-banner" class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-900 dark:text-emerald-200">
+                <div class="flex items-center gap-2">
+                  <span class="text-base" aria-hidden="true">👋</span>
+                  <span>Вы в режиме <strong>Гостя</strong>. Войдите через Google, чтобы сохранять историю ваших счетов и чеков.</span>
+                </div>
+                <a href="${options.apiBaseUrl.replace(/\/+$/, "")}/.well-known/oauth-authorization-server" class="shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1 font-bold text-white shadow-xs transition">Войти через Google</a>
+              </div>`
+            : ""
+        }
+
         <!-- Live Status Banner -->
         <div
           id="status-banner"
@@ -605,6 +629,125 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
       var uiActionToken = bootstrap.uiActionToken || "";
       var apiBaseUrl = bootstrap.apiBaseUrl || "";
 
+      // Section 2 & 3: Guest vs Registered identity & co-claiming user session
+      var safeStorage = null;
+      try {
+        if (typeof window !== "undefined" && window.localStorage) {
+          safeStorage = window.localStorage;
+        } else if (typeof localStorage !== "undefined") {
+          safeStorage = localStorage;
+        }
+      } catch (_e) {}
+
+      var currentUserId =
+        bootstrap.anonUserId ||
+        (safeStorage ? safeStorage.getItem("splittel_user_id") : null) ||
+        ("user_" + Math.random().toString(36).substring(2, 10));
+      if (safeStorage) {
+        try {
+          safeStorage.setItem("splittel_user_id", currentUserId);
+        } catch (_e) {}
+      }
+
+      var currentUserName = "";
+      if (safeStorage) {
+        try {
+          currentUserName = safeStorage.getItem("splittel_user_name") || "";
+        } catch (_e) {}
+      }
+
+      if (
+        !params.get("bill_id") &&
+        bootstrap.billId &&
+        typeof window !== "undefined" &&
+        window.history &&
+        typeof window.history.replaceState === "function"
+      ) {
+        try {
+          var newSearch = new URLSearchParams(window.location.search);
+          newSearch.set("bill_id", bootstrap.billId);
+          window.history.replaceState(
+            {},
+            "",
+            window.location.pathname + "?" + newSearch.toString()
+          );
+        } catch (_e) {}
+      }
+
+      var CLAIMANT_COLORS = [
+        "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+        "border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-300",
+        "border-indigo-500/30 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
+        "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300",
+        "border-rose-500/30 bg-rose-500/15 text-rose-700 dark:text-rose-300",
+        "border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300",
+        "border-teal-500/30 bg-teal-500/15 text-teal-700 dark:text-teal-300"
+      ];
+
+      function getClaimantBadgeClass(name, fallbackIdx) {
+        var str = String(name || "");
+        if (!str) return CLAIMANT_COLORS[fallbackIdx % CLAIMANT_COLORS.length];
+        var hash = 0;
+        for (var i = 0; i < str.length; i++) {
+          hash = (hash << 5) - hash + str.charCodeAt(i);
+          hash |= 0;
+        }
+        var idx = Math.abs(hash) % CLAIMANT_COLORS.length;
+        return CLAIMANT_COLORS[idx];
+      }
+
+      function toggleDishClaim(dishIdOrName) {
+        if (!currentBill || !currentBill.bill_id) return;
+        if (!currentUserName || !currentUserName.trim()) {
+          var entered = window.prompt("Введите ваше имя для отметки блюд в счёте:", "Гость");
+          if (entered && entered.trim()) {
+            currentUserName = entered.trim();
+            if (safeStorage) {
+              try {
+                safeStorage.setItem("splittel_user_name", currentUserName);
+              } catch (_e) {}
+            }
+          } else {
+            currentUserName = "Гость-" + (currentUserId ? currentUserId.slice(-4) : "1");
+            if (safeStorage) {
+              try {
+                safeStorage.setItem("splittel_user_name", currentUserName);
+              } catch (_e) {}
+            }
+          }
+        }
+
+        var url = (apiBaseUrl || "") + "/api/bills/" + encodeURIComponent(currentBill.bill_id) + "/claim";
+        fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Splittel-Anon-User-Id": currentUserId
+          },
+          body: JSON.stringify({
+            item_id: dishIdOrName,
+            user_id: currentUserId,
+            user_name: currentUserName,
+            action: "toggle"
+          })
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error("Claim failed with status " + res.status);
+            return res.json();
+          })
+          .then(function (data) {
+            if (data && data.bill) {
+              currentBill = data.bill;
+              renderAll(currentBill);
+              showStatusBanner("Выбор обновлён");
+            }
+          })
+          .catch(function (err) {
+            console.error("Co-claim error:", err);
+            showStatusBanner("Не удалось обновить выбор блюда");
+          });
+      }
+
       // 4. MCP Apps JSON-RPC 2.0 postMessage bridge
       var isEmbedded = window.parent && window.parent !== window;
       var mcpHostConnected = false;
@@ -951,7 +1094,7 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
 
         syncTipPillHighlight(bill.tip_percentage);
 
-        // Render Section 2: Itemized Interactive Matrix
+        // Render Section 2: Itemized Interactive Matrix with Co-Claiming & Badges
         var matrixListEl = document.getElementById("dish-matrix-list");
         if (matrixListEl) {
           var matrixFrag = document.createDocumentFragment();
@@ -959,11 +1102,15 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
 
           (bill.raw_items || []).forEach(function (dish) {
             var row = document.createElement("div");
-            row.className = "flex flex-col justify-between gap-2.5 py-3 sm:flex-row sm:items-center";
+            row.className =
+              "flex flex-col justify-between gap-2.5 py-3 sm:flex-row sm:items-center rounded-xl px-2 transition hover:bg-slate-500/5 cursor-pointer";
 
-            // Left column: Dish name, quantity & price
+            // Left column: Dish name, quantity & price + Claimed Badges
             var left = document.createElement("div");
-            left.className = "flex items-baseline justify-between gap-3 sm:justify-start";
+            left.className = "flex flex-col gap-1 sm:max-w-[55%]";
+
+            var titlePriceRow = document.createElement("div");
+            titlePriceRow.className = "flex items-baseline justify-between gap-3 sm:justify-start";
 
             var dishTitle = document.createElement("span");
             dishTitle.dir = "auto";
@@ -975,12 +1122,63 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
             dishPrice.className = "secondary-copy text-xs font-bold tabular-nums sm:text-sm";
             dishPrice.textContent = formatMoney(dish.line_total, currency);
 
-            left.appendChild(dishTitle);
-            left.appendChild(dishPrice);
+            titlePriceRow.appendChild(dishTitle);
+            titlePriceRow.appendChild(dishPrice);
+            left.appendChild(titlePriceRow);
 
-            // Right column: Avatar chips for each friend
+            // SECTION 4.2: Claimed Dishes Visual Badges
+            if (dish.claimedBy && Array.isArray(dish.claimedBy) && dish.claimedBy.length > 0) {
+              var claimantsWrap = document.createElement("div");
+              claimantsWrap.className = "claimants-badges flex flex-wrap items-center gap-1.5 mt-0.5";
+              dish.claimedBy.forEach(function (claimant, cIdx) {
+                var cBadge = document.createElement("span");
+                cBadge.className =
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border " +
+                  getClaimantBadgeClass(claimant.userName, cIdx);
+                var cIcon = document.createElement("span");
+                cIcon.setAttribute("aria-hidden", "true");
+                cIcon.textContent = "👤";
+                var cName = document.createElement("span");
+                cName.dir = "auto";
+                cName.textContent = claimant.userName;
+                cBadge.appendChild(cIcon);
+                cBadge.appendChild(cName);
+                claimantsWrap.appendChild(cBadge);
+              });
+              left.appendChild(claimantsWrap);
+            }
+
+            // Right column: Co-claim button + Avatar chips for each friend
             var chipsWrap = document.createElement("div");
             chipsWrap.className = "flex flex-wrap items-center gap-1.5";
+
+            // Current user co-claim toggle button (Section 3.3)
+            var isClaimedByMe = (dish.claimedBy || []).some(function (c) {
+              return (
+                (currentUserId && c.userId === currentUserId) ||
+                (currentUserName && c.userName.toLowerCase() === currentUserName.toLowerCase())
+              );
+            });
+
+            var claimBtn = document.createElement("button");
+            claimBtn.type = "button";
+            claimBtn.className = isClaimedByMe
+              ? "cursor-pointer inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-500 active:scale-95"
+              : "cursor-pointer inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition hover:bg-emerald-500/10 hover:border-emerald-500 active:scale-95";
+            claimBtn.style.borderColor = isClaimedByMe ? "transparent" : "var(--border-subtle)";
+            claimBtn.textContent = isClaimedByMe ? "✓ Я ел(а)" : "+ Я ел(а)";
+            claimBtn.setAttribute("aria-pressed", isClaimedByMe ? "true" : "false");
+            claimBtn.setAttribute(
+              "title",
+              isClaimedByMe
+                ? "Снять отметку с этого блюда"
+                : "Отметить блюдо для себя"
+            );
+            claimBtn.addEventListener("click", function (e) {
+              e.stopPropagation();
+              toggleDishClaim(dish.item_id || dish.item_name);
+            });
+            chipsWrap.appendChild(claimBtn);
 
             var selectedCount = 0;
             people.forEach(function (person) {
@@ -1010,7 +1208,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
 
               chip.appendChild(av);
               chip.appendChild(nameSpan);
-              chip.addEventListener("click", function () {
+              chip.addEventListener("click", function (e) {
+                e.stopPropagation();
                 toggleDishAssignment(person, dish.item_name);
               });
               chipsWrap.appendChild(chip);
@@ -1025,6 +1224,18 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
                   ? "÷" + selectedCount
                   : "1×";
             chipsWrap.appendChild(splitHint);
+
+            // Tap dish card itself toggles claim (Section 3.3)
+            row.addEventListener("click", function (e) {
+              if (
+                e.target.closest("button") ||
+                e.target.closest("a") ||
+                e.target.closest("input")
+              ) {
+                return;
+              }
+              toggleDishClaim(dish.item_id || dish.item_name);
+            });
 
             row.appendChild(left);
             row.appendChild(chipsWrap);
@@ -2017,20 +2228,26 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
         });
       }
 
-      // Share Link button (Scenario C: Group Link Sharing)
+      // Share Link button (Section 3: Shareable Co-Claiming and Real-Time Link Sharing)
       var shareLinkBtn = document.getElementById("copy-share-link-btn");
       if (shareLinkBtn) {
         shareLinkBtn.addEventListener("click", function () {
-          var shareUrl =
-            (currentBill && currentBill.share_url) || window.location.href;
+          var activeBillId =
+            (currentBill && currentBill.bill_id) ||
+            bootstrap.billId ||
+            new URLSearchParams(window.location.search).get("bill_id") ||
+            "";
+          var baseUrl = (apiBaseUrl || window.location.origin).replace(new RegExp("/+$"), "");
+          var shareUrl = baseUrl + "/ui/bill-board?bill_id=" + encodeURIComponent(activeBillId);
+
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(function () {
-              showStatusBanner("Group share link copied: " + shareUrl);
+              showStatusBanner("Ссылка на счёт скопирована: " + shareUrl);
             }).catch(function () {
-              showStatusBanner("Share URL: " + shareUrl);
+              showStatusBanner("Ссылка на счёт: " + shareUrl);
             });
           } else {
-            showStatusBanner("Share URL: " + shareUrl);
+            showStatusBanner("Ссылка на счёт: " + shareUrl);
           }
         });
       }

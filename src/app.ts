@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import express, {
   type Express,
   type NextFunction,
@@ -566,40 +567,82 @@ export async function createSplittelRuntime(
     });
   });
 
-  app.get(
-    "/api/account/history",
-    accountAuth,
-    async (req: Request, res: Response) => {
-      const sub =
-        typeof req.auth?.extra?.sub === "string"
-          ? req.auth.extra.sub
-          : req.auth!.clientId;
-      const bills = await store.getUserHistory(sub);
-      res.json({ sub, count: bills.length, bills });
-    }
-  );
+  const handleUserHistoryGet = async (req: Request, res: Response) => {
+    const sub =
+      typeof req.auth?.extra?.sub === "string"
+        ? req.auth.extra.sub
+        : req.auth!.clientId;
+    const email =
+      typeof req.auth?.extra?.email === "string"
+        ? req.auth.extra.email
+        : undefined;
+    const name =
+      typeof req.auth?.extra?.name === "string"
+        ? req.auth.extra.name
+        : undefined;
 
-  app.post(
-    "/api/account/history",
-    accountAuth,
-    async (req: Request, res: Response) => {
-      const sub =
-        typeof req.auth?.extra?.sub === "string"
-          ? req.auth.extra.sub
-          : req.auth!.clientId;
-      const { bill_id } = (req.body ?? {}) as { bill_id?: string };
-      if (!bill_id) {
-        res.status(400).json({ error: "bill_id is required" });
-        return;
+    const bills = await store.getUserHistory(sub);
+
+    let totalSpend = 0;
+    const currencyTotals: Record<string, number> = {};
+    const contactSet = new Set<string>();
+
+    for (const b of bills) {
+      totalSpend += b.grand_total;
+      currencyTotals[b.currency] = (currencyTotals[b.currency] ?? 0) + b.grand_total;
+      for (const p of b.people) {
+        if (!name || p.toLowerCase() !== name.toLowerCase()) {
+          contactSet.add(p);
+        }
       }
-      const bill = await store.attachBillToUserHistory(bill_id, sub);
-      if (!bill) {
-        res.status(404).json({ error: "bill_not_found" });
-        return;
-      }
-      res.json({ saved: true, bill });
     }
-  );
+
+    res.json({
+      user: {
+        id: sub,
+        name: name ?? "Splittel User",
+        email: email ?? `${sub}@users.splittel.app`,
+      },
+      user_id: sub,
+      email,
+      name,
+      count: bills.length,
+      bills,
+      analytics: {
+        total_bills: bills.length,
+        total_spend: Number(totalSpend.toFixed(2)),
+        currency_breakdown: currencyTotals,
+        average_check:
+          bills.length > 0
+            ? Number((totalSpend / bills.length).toFixed(2))
+            : 0,
+      },
+      contacts: Array.from(contactSet),
+    });
+  };
+
+  const handleUserHistoryPost = async (req: Request, res: Response) => {
+    const sub =
+      typeof req.auth?.extra?.sub === "string"
+        ? req.auth.extra.sub
+        : req.auth!.clientId;
+    const { bill_id } = (req.body ?? {}) as { bill_id?: string };
+    if (!bill_id) {
+      res.status(400).json({ error: "bill_id is required" });
+      return;
+    }
+    const bill = await store.attachBillToUserHistory(bill_id, sub);
+    if (!bill) {
+      res.status(404).json({ error: "bill_not_found" });
+      return;
+    }
+    res.json({ saved: true, bill });
+  };
+
+  app.get("/api/user/history", accountAuth, handleUserHistoryGet);
+  app.post("/api/user/history", accountAuth, handleUserHistoryPost);
+  app.get("/api/account/history", accountAuth, handleUserHistoryGet);
+  app.post("/api/account/history", accountAuth, handleUserHistoryPost);
 
   app.get(
     "/api/account/payment-profile",
@@ -651,37 +694,125 @@ export async function createSplittelRuntime(
   // SANDBOXED IFRAME & SHARED GROUP LINK (`GET /ui/bill-board`)
   // ===========================================================================
   app.get("/ui/bill-board", async (req: Request, res: Response) => {
-    const billId =
+    let billId =
       typeof req.query.bill_id === "string" && req.query.bill_id.trim()
         ? req.query.bill_id.trim()
         : undefined;
+
+    // SECTION 1.2: If no bill_id is provided, generate a new empty bill session (UUIDv4)
+    const effectiveBillId = billId || randomUUID();
+    const bill = billId ? await store.getBill(billId) : undefined;
+
     const rawTheme =
       typeof req.query.theme === "string" ? req.query.theme : undefined;
     const initialTheme =
       rawTheme === "dark" || rawTheme === "light" ? rawTheme : undefined;
 
-    const bill = billId
-      ? await store.getBill(billId)
-      : (await store.getBill()) ?? null;
+    // Guest vs Registered User detection (Section 2)
+    const isGuest = !req.headers.authorization;
+    const anonUserId =
+      typeof req.headers["x-splittel-anon-user-id"] === "string"
+        ? (req.headers["x-splittel-anon-user-id"] as string)
+        : typeof req.query.anon_user_id === "string"
+          ? (req.query.anon_user_id as string)
+          : undefined;
 
-    if (billId && !bill) {
-      res.status(404).type("text/plain").send("Bill not found.");
-      return;
-    }
-
-    const uiActionToken = bill
-      ? oauthProvider.signUiActionToken(bill.bill_id)
-      : "";
+    const uiActionToken = oauthProvider.signUiActionToken(effectiveBillId);
     const html = renderBillBoardHtml({
       bill: bill ?? null,
+      billId: effectiveBillId,
       uiActionToken,
       apiBaseUrl: cleanBaseUrl,
       initialTheme,
+      isGuest,
+      anonUserId,
     });
 
     res.setHeader("Cache-Control", "no-store");
     res.type("html").send(html);
   });
+
+  // ===========================================================================
+  // INTERACTIVE CO-CLAIMING ENDPOINTS (SECTION 3.3)
+  // ===========================================================================
+  const handleBillClaim = async (req: Request, res: Response) => {
+    const rawBillId = req.params.billId || req.body?.bill_id;
+    const billId = typeof rawBillId === "string" ? rawBillId.trim() : "";
+    if (!billId) {
+      res.status(400).json({ error: "bill_id is required" });
+      return;
+    }
+
+    const {
+      item_index,
+      item_id,
+      user_id,
+      user_name,
+      action,
+    } = (req.body ?? {}) as {
+      item_index?: number;
+      item_id?: string;
+      user_id?: string;
+      user_name?: string;
+      action?: "toggle" | "claim" | "unclaim";
+    };
+
+    const targetIdentifier = item_id !== undefined ? item_id : item_index;
+    if (targetIdentifier === undefined) {
+      res.status(400).json({ error: "item_id or item_index is required" });
+      return;
+    }
+
+    let effectiveUserId = user_id;
+    let effectiveUserName = user_name;
+
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      try {
+        const token = req.headers.authorization.slice(7).trim();
+        const authInfo = await oauthProvider.verifyAccessToken(token);
+        effectiveUserId = String(authInfo.extra?.sub || authInfo.clientId);
+        effectiveUserName = String(
+          authInfo.extra?.name || effectiveUserName || effectiveUserId
+        );
+      } catch {
+        // guest fallback
+      }
+    }
+
+    if (!effectiveUserId) {
+      effectiveUserId =
+        (req.headers["x-splittel-anon-user-id"] as string) || randomUUID();
+    }
+    if (!effectiveUserName || !effectiveUserName.trim()) {
+      effectiveUserName = `Гость-${effectiveUserId.slice(0, 4)}`;
+    }
+
+    const updatedBill = await store.claimDishOnBill({
+      billId,
+      itemIdOrIndex: targetIdentifier,
+      userId: effectiveUserId,
+      userName: effectiveUserName,
+      action: action ?? "toggle",
+    });
+
+    if (!updatedBill) {
+      res.status(404).json({ error: "bill_not_found" });
+      return;
+    }
+
+    await redisSync.publishBillUpdate(updatedBill, "bill_state_updated");
+
+    res.json({
+      success: true,
+      bill: updatedBill,
+    });
+  };
+
+  app.post("/api/bills/:billId/claim", handleBillClaim);
+  app.post("/api/bills/claim", handleBillClaim);
 
   // ===========================================================================
   // RECEIPT PHOTO UPLOAD (R2), PII ANONYMIZATION & DIRECT BILL CREATION
@@ -928,7 +1059,27 @@ export async function createSplittelRuntime(
               })
             : undefined;
 
+        let ownerSub: string | undefined;
+        if (
+          req.headers.authorization &&
+          req.headers.authorization.startsWith("Bearer ")
+        ) {
+          try {
+            const token = req.headers.authorization.slice(7).trim();
+            const authInfo = await oauthProvider.verifyAccessToken(token);
+            ownerSub = String(authInfo.extra?.sub || authInfo.clientId);
+          } catch {
+            // guest fallback
+          }
+        }
+
+        const explicitBillId =
+          typeof (req.body as { bill_id?: unknown })?.bill_id === "string"
+            ? (req.body as { bill_id: string }).bill_id.trim()
+            : undefined;
+
         const bill = await parseAndSplitBill({
+          billId: explicitBillId || undefined,
           title,
           currency: currency ?? "RUB",
           settlement_currency,
@@ -942,9 +1093,13 @@ export async function createSplittelRuntime(
           image_url: resolvedImageUrl,
           geo_location: geo_location ?? null,
           nearbyBenchmarks,
+          ownerSub,
         });
 
         await store.saveBill(bill);
+        if (ownerSub) {
+          await store.attachBillToUserHistory(bill.bill_id, ownerSub);
+        }
         const uiActionToken = oauthProvider.signUiActionToken(bill.bill_id);
 
         res.json({ success: true, bill, uiActionToken });

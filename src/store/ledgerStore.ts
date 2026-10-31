@@ -30,7 +30,6 @@ export interface SettleResult {
 
 export class LedgerStore {
   private bills = new Map<string, ParsedBillBoard>();
-  private latestBillId: string | undefined;
   private transactions = new Map<string, TransactionRecord>();
   private paymentCards = new Map<string, PaymentCard>();
   private paymentProfiles = new Map<string, UserPaymentProfile>();
@@ -51,7 +50,6 @@ export class LedgerStore {
 
   private saveBillSync(bill: ParsedBillBoard): void {
     this.bills.set(bill.bill_id, bill);
-    this.latestBillId = bill.bill_id;
     this.receiptSnippets.push(
       extractAnonymousSnippet({
         bill_id: bill.bill_id,
@@ -478,49 +476,41 @@ export class LedgerStore {
   }
 
   async getBill(billId?: string): Promise<ParsedBillBoard | undefined> {
-    if (!billId) {
-      if (this.pgActive && this.pgPool) {
-        const res = await this.pgPool.query<{ payload: ParsedBillBoard }>(
-          `SELECT payload FROM splittel_bills ORDER BY created_at DESC LIMIT 1`
-        );
-        if (res.rows[0]?.payload) {
-          const found = res.rows[0].payload;
-          this.bills.set(found.bill_id, found);
-          this.latestBillId = found.bill_id;
-          return found;
-        }
-      }
-      return this.latestBillId ? this.bills.get(this.latestBillId) : undefined;
+    if (!billId || !billId.trim()) {
+      return undefined;
     }
+
+    const cleanBillId = billId.trim();
 
     // 1. Check Redis 24h TTL state cache first
     if (this.options.redisSync) {
-      const cached = await this.options.redisSync.getCachedBillState(billId);
+      const cached = await this.options.redisSync.getCachedBillState(cleanBillId);
       if (cached) {
-        this.bills.set(billId, cached);
+        this.bills.set(cleanBillId, cached);
         return cached;
       }
     }
 
     // 2. Check in-memory map
-    const mem = this.bills.get(billId);
+    const mem = this.bills.get(cleanBillId);
     if (mem) return mem;
 
     // 3. Fallback to PostgreSQL
     if (this.pgActive && this.pgPool) {
       const res = await this.pgPool.query<{ payload: ParsedBillBoard }>(
         `SELECT payload FROM splittel_bills WHERE bill_id = $1`,
-        [billId]
+        [cleanBillId]
       );
       if (res.rows[0]?.payload) {
         const hydrated = res.rows[0].payload;
-        this.bills.set(billId, hydrated);
+        this.bills.set(cleanBillId, hydrated);
         if (this.options.redisSync) {
           await this.options.redisSync.cacheBillState(hydrated);
         }
         return hydrated;
       }
     }
+
     return undefined;
   }
 
@@ -756,6 +746,19 @@ export class LedgerStore {
 
   // Account-Linked Expense History & Personal Payment Details (SBP / Stripe)
   async getUserHistory(sub: string): Promise<ParsedBillBoard[]> {
+    if (this.pgActive && this.pgPool) {
+      try {
+        const res = await this.pgPool.query<{ payload: ParsedBillBoard }>(
+          `SELECT payload FROM splittel_bills WHERE owner_sub = $1 ORDER BY created_at DESC`,
+          [sub]
+        );
+        if (res.rows.length > 0) {
+          return res.rows.map((r) => r.payload);
+        }
+      } catch {
+        // fallback to memory map
+      }
+    }
     const list: ParsedBillBoard[] = [];
     for (const bill of this.bills.values()) {
       if (bill.owner_sub === sub) {
@@ -763,6 +766,113 @@ export class LedgerStore {
       }
     }
     return list.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
+  /**
+   * Interactive Co-Claiming: allows any participant viewing the bill to tap and toggle dish claims.
+   * Recalculates all shares, taxes, and tips dynamically using proportional allocation.
+   */
+  async claimDishOnBill(params: {
+    billId: string;
+    itemIdOrIndex: string | number;
+    userId: string;
+    userName: string;
+    action?: "toggle" | "claim" | "unclaim";
+  }): Promise<ParsedBillBoard | undefined> {
+    const bill = await this.getBill(params.billId);
+    if (!bill) return undefined;
+
+    const items = [...bill.raw_items];
+    let targetIdx = -1;
+    if (typeof params.itemIdOrIndex === "number") {
+      targetIdx = params.itemIdOrIndex;
+    } else {
+      targetIdx = items.findIndex(
+        (it, idx) =>
+          it.item_id === params.itemIdOrIndex ||
+          `item_${idx + 1}` === params.itemIdOrIndex ||
+          it.item_name.trim().toLowerCase() === String(params.itemIdOrIndex).trim().toLowerCase()
+      );
+    }
+
+    if (targetIdx < 0 || targetIdx >= items.length) {
+      return undefined;
+    }
+
+    const targetItem = { ...items[targetIdx]! };
+    const currentClaimants = Array.isArray(targetItem.claimedBy)
+      ? [...targetItem.claimedBy]
+      : [];
+
+    const existingClaimIdx = currentClaimants.findIndex(
+      (c) =>
+        c.userId === params.userId ||
+        c.userName.toLowerCase() === params.userName.toLowerCase()
+    );
+
+    const action = params.action ?? "toggle";
+    if (action === "toggle") {
+      if (existingClaimIdx >= 0) {
+        currentClaimants.splice(existingClaimIdx, 1);
+      } else {
+        currentClaimants.push({
+          userId: params.userId,
+          userName: params.userName.trim(),
+          claimedAt: new Date().toISOString(),
+        });
+      }
+    } else if (action === "claim" && existingClaimIdx < 0) {
+      currentClaimants.push({
+        userId: params.userId,
+        userName: params.userName.trim(),
+        claimedAt: new Date().toISOString(),
+      });
+    } else if (action === "unclaim" && existingClaimIdx >= 0) {
+      currentClaimants.splice(existingClaimIdx, 1);
+    }
+
+    targetItem.claimedBy = currentClaimants;
+    items[targetIdx] = targetItem;
+
+    const rawItemsInput = items.map((it) => ({
+      item_name: it.item_name,
+      price: it.price,
+      quantity: it.quantity,
+      claimedBy: it.claimedBy,
+    }));
+
+    const existingStatuses = new Map<
+      string,
+      { status: TransactionStatus; settled_at?: string; settled_by?: string }
+    >();
+    for (const share of bill.people_shares) {
+      existingStatuses.set(share.person, {
+        status: share.status,
+        settled_at: share.settled_at,
+        settled_by: share.settled_by,
+      });
+    }
+
+    const updatedBill = await parseAndSplitBill({
+      raw_items: rawItemsInput,
+      people: bill.people.length > 0 ? bill.people : [params.userName.trim()],
+      assignments: bill.assignments,
+      tip_percentage: bill.tip_percentage,
+      tax_amount: bill.tax_amount,
+      currency: bill.currency,
+      settlement_currency: bill.settlement_currency,
+      exchange_rate: bill.exchange_rate,
+      title: bill.title,
+      baseUrl: this.options.publicBaseUrl,
+      billId: bill.bill_id,
+      existingStatuses,
+      ownerSub: bill.owner_sub,
+      image_url: bill.image_url,
+      geo_location: bill.geo_location,
+    });
+
+    await this.saveBill(updatedBill, { recordReceiptItems: false });
+    return updatedBill;
   }
 
   async attachBillToUserHistory(

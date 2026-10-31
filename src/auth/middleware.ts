@@ -225,9 +225,7 @@ export function requireAccountLinking(options: {
         res,
         401,
         options.resourceMetadataUrl,
-        new InvalidTokenError(
-          "OAuth 2.1 Bearer token required for Account-Linked operations"
-        ),
+        undefined,
         SPLITTEL_SCOPES
       );
       return;

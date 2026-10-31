@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   registerAppResource,
@@ -76,14 +77,14 @@ export function createSplittelMcpServer(deps: CreateSplittelMcpDeps): McpServer 
       },
     },
     async () => {
-      const latestBill = (await deps.store.getBill()) ?? null;
-      const uiActionToken = latestBill
-        ? deps.oauthProvider.signUiActionToken(latestBill.bill_id)
-        : "";
+      const newBillId = randomUUID();
+      const uiActionToken = deps.oauthProvider.signUiActionToken(newBillId);
       const html = renderBillBoardHtml({
-        bill: latestBill,
+        bill: null,
+        billId: newBillId,
         uiActionToken,
         apiBaseUrl: cleanBaseUrl,
+        isGuest: true,
       });
 
       return {
@@ -120,16 +121,17 @@ export function createSplittelMcpServer(deps: CreateSplittelMcpDeps): McpServer 
     async (uri, variables) => {
       const billId =
         typeof variables.bill_id === "string" ? variables.bill_id : undefined;
-      const bill =
-        (await deps.store.getBill(billId)) ?? (await deps.store.getBill());
+      const bill = billId ? await deps.store.getBill(billId) : undefined;
       if (!bill) {
-        throw new Error(`Bill not found: ${billId ?? "latest"}`);
+        throw new Error(`Bill not found: ${billId ?? "missing"}`);
       }
       const uiActionToken = deps.oauthProvider.signUiActionToken(bill.bill_id);
       const html = renderBillBoardHtml({
         bill,
+        billId: bill.bill_id,
         uiActionToken,
         apiBaseUrl: cleanBaseUrl,
+        isGuest: false,
       });
 
       return {
@@ -283,6 +285,9 @@ export function createSplittelMcpServer(deps: CreateSplittelMcpDeps): McpServer 
       });
 
       await deps.store.saveBill(bill);
+      if (ownerSub) {
+        await deps.store.attachBillToUserHistory(bill.bill_id, ownerSub);
+      }
       const uiActionToken = deps.oauthProvider.signUiActionToken(bill.bill_id);
       const isCrossCurrency = bill.settlement_currency !== bill.currency;
 

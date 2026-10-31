@@ -130,6 +130,16 @@ export async function parseAndSplitBill(
       seenPeople.set(normalizeKey(clean), clean);
     }
   }
+  for (const item of input.raw_items) {
+    if (item.claimedBy && Array.isArray(item.claimedBy)) {
+      for (const claimant of item.claimedBy) {
+        const clean = claimant.userName?.trim();
+        if (clean && !seenPeople.has(normalizeKey(clean))) {
+          seenPeople.set(normalizeKey(clean), clean);
+        }
+      }
+    }
+  }
 
   const participants = Array.from(seenPeople.values());
   if (participants.length === 0) {
@@ -156,6 +166,25 @@ export async function parseAndSplitBill(
       if (!iKey) continue;
       canonicalAssignments[canonicalPerson]!.push(cleanItem);
       map.set(iKey, (map.get(iKey) ?? 0) + 1);
+    }
+  }
+
+  // Integrate interactive claiming into canonical assignments & proportional weights
+  for (const rawItem of input.raw_items) {
+    if (rawItem.claimedBy && rawItem.claimedBy.length > 0) {
+      const cleanItem = rawItem.item_name.trim();
+      const iKey = normalizeKey(cleanItem);
+      for (const claimant of rawItem.claimedBy) {
+        const pKey = normalizeKey(claimant.userName);
+        const canonicalPerson = seenPeople.get(pKey);
+        const map = personItemOccurrences.get(pKey);
+        if (canonicalPerson && map) {
+          if (!canonicalAssignments[canonicalPerson]!.includes(cleanItem)) {
+            canonicalAssignments[canonicalPerson]!.push(cleanItem);
+          }
+          map.set(iKey, (map.get(iKey) ?? 0) + 1);
+        }
+      }
     }
   }
 
@@ -186,6 +215,7 @@ export async function parseAndSplitBill(
       price: fromCents(unitPriceCents),
       quantity,
       line_total: fromCents(lineTotalCents),
+      claimedBy: rawItem.claimedBy ? [...rawItem.claimedBy] : undefined,
     });
 
     const itemKey = normalizeKey(rawItem.item_name);

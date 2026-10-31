@@ -484,7 +484,8 @@ describe("@Splittel Comprehensive Remote MCP Specification Suite", () => {
   });
 
   it("supports Scenario B & C interactive dish toggling, tip pills, and SSE transport", async () => {
-    const latestBill = (await runtime.store.getBill())!;
+    const bills = Array.from((runtime.store as any).bills.values()) as any[];
+    const latestBill = bills[bills.length - 1]!;
 
     // Scenario C: Friend opens shared group link and updates dish assignments + 15% tip without login
     const patchRes = await request(runtime.app)

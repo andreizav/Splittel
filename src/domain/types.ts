@@ -1,7 +1,14 @@
+export interface ItemClaimant {
+  userId: string;
+  userName: string;
+  claimedAt: string;
+}
+
 export interface RawReceiptItem {
   item_name: string;
   price: number;
   quantity?: number;
+  claimedBy?: ItemClaimant[];
 }
 
 export interface BillMatrixItem {
@@ -10,6 +17,7 @@ export interface BillMatrixItem {
   price: number;
   quantity: number;
   line_total: number;
+  claimedBy?: ItemClaimant[];
 }
 
 export interface PersonAssignedItem {
