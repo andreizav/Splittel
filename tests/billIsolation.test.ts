@@ -350,5 +350,40 @@ describe("Multi-Tenant Session Isolation & OAuth Role Segmentation (billIsolatio
       expect(uiRes.text).toContain('id="user-history-dialog"');
       expect(uiRes.text).toContain('id="set-name-dialog"');
     });
+
+    it("verifies simplified UI: no receipt photo preview, no currency picker, 1-10 participant buttons, no total bill/settled header, no manual entry in header, and no Mark as Paid buttons", async () => {
+      const uiRes = await request(httpsServer).get("/ui/bill-board");
+      expect(uiRes.status).toBe(200);
+      const html = uiRes.text;
+
+      // 1. Scan/New bill modal: photo preview removed
+      expect(html).not.toContain('id="receipt-preview-img"');
+      expect(html).not.toContain("Предпросмотр фото чека");
+
+      // 2. Scan/New bill modal: currency select removed (only hidden input)
+      expect(html).not.toContain('<select id="new-bill-currency-input"');
+      expect(html).toContain('type="hidden" id="new-bill-currency-input"');
+
+      // 3. Scan/New bill modal: 1 to 10 participant count buttons
+      for (let count = 1; count <= 10; count++) {
+        expect(html).toContain(`data-count="${count}"`);
+      }
+      expect(html).toContain('id="participant-count-pills"');
+
+      // 4. Main screen: no currency select, total bill, or settled in header
+      expect(html).not.toContain('id="currency-select"');
+      expect(html).not.toContain('<div class="secondary-copy text-[10px] font-semibold uppercase tracking-wider">Total Bill</div>');
+      expect(html).not.toContain('<div class="secondary-copy text-[10px] font-semibold uppercase tracking-wider">Settled</div>');
+
+      // 5. Main screen: no "+ Ввести вручную" button in header dock
+      expect(html).not.toContain("+ Ввести вручную");
+
+      // 6. Main screen: two main buttons present
+      expect(html).toContain('id="share-whatsapp-btn"');
+      expect(html).toContain('id="copy-share-link-btn"');
+
+      // 7. Person summary cards: no Mark as Paid button generated
+      expect(html).not.toContain('Mark as Paid');
+    });
   });
 });

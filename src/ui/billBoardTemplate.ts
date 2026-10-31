@@ -85,27 +85,19 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
               </span>
               <button
                 type="button"
-                id="open-new-bill-btn"
-                class="cursor-pointer rounded-full border px-2.5 py-0.5 text-xs font-semibold transition hover:opacity-80"
-                style="border-color: var(--border-subtle);"
-              >
-                + Ввести вручную
-              </button>
-              <button
-                type="button"
                 id="share-whatsapp-btn"
-                class="${hasInitialBill || effectiveBillId ? "" : "hidden "}cursor-pointer inline-flex items-center gap-1.5 rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white px-3 py-0.5 text-xs font-bold shadow-xs transition active:scale-95"
+                class="${hasInitialBill || effectiveBillId ? "" : "hidden "}cursor-pointer inline-flex items-center gap-1.5 rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white px-3 py-1 text-xs font-bold shadow-xs transition active:scale-95"
                 title="Открыть WhatsApp и отправить ссылку друзьям для выбора блюд"
               >
                 <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12.031 2C6.495 2 2 6.495 2 12.031c0 1.768.46 3.493 1.332 5.006L2 22l5.127-1.344a10.015 10.015 0 0 0 4.904 1.282h.005c5.535 0 10.03-4.496 10.03-10.031 0-2.68-1.043-5.2-2.937-7.094A10.007 10.007 0 0 0 12.031 2zm0 18.326h-.004a8.318 8.318 0 0 1-4.24-1.162l-.304-.18-3.153.827.842-3.073-.198-.315a8.337 8.337 0 0 1-1.277-4.423c0-4.594 3.738-8.332 8.336-8.332 2.226 0 4.318.868 5.892 2.443a8.307 8.307 0 0 1 2.441 5.891c0 4.595-3.738 8.333-8.336 8.333zm4.568-6.237c-.25-.125-1.48-.73-1.71-.813-.23-.083-.396-.125-.562.125-.167.25-.646.813-.792.98-.146.166-.292.187-.542.062s-1.06-.391-2.019-1.246c-.747-.666-1.251-1.488-1.397-1.738-.146-.25-.016-.385.11-.51.113-.112.25-.292.375-.438.125-.146.167-.25.25-.417.084-.167.042-.313-.02-.438s-.563-1.355-.772-1.855c-.203-.488-.41-.422-.563-.43l-.479-.008c-.167 0-.438.063-.667.313-.23.25-.875.855-.875 2.084s.896 2.418 1.021 2.585c.125.166 1.763 2.693 4.272 3.777.597.258 1.064.412 1.428.528.6.191 1.146.164 1.577.1.48-.072 1.48-.605 1.688-1.189.208-.584.208-1.084.146-1.189-.062-.104-.229-.167-.479-.292z"/>
                 </svg>
-                <span>В WhatsApp 💬</span>
+                <span>В WhatsApp 💬 (разделить счёт)</span>
               </button>
               <button
                 type="button"
                 id="copy-share-link-btn"
-                class="${hasInitialBill || effectiveBillId ? "" : "hidden "}cursor-pointer inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition hover:bg-emerald-500/10 hover:border-emerald-500"
+                class="${hasInitialBill || effectiveBillId ? "" : "hidden "}cursor-pointer inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition hover:bg-emerald-500/10 hover:border-emerald-500"
                 style="border-color: var(--border-subtle);"
                 title="Скопировать ссылку на чек"
               >
@@ -118,40 +110,11 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
               .replace(/</g, "&lt;")
               .replace(/>/g, "&gt;")}</h1>
             <p id="bill-meta" class="secondary-copy text-xs">${
-              hasInitialBill ? "" : "Наведите камеру на чек или создайте расчёт вручную"
+              hasInitialBill ? "" : "Нажмите «Сканировать чек 📷», чтобы сфотографировать чек"
             }</p>
           </div>
 
-          <div id="header-metrics-wrap" class="${hasInitialBill ? "flex" : "hidden"} flex-wrap items-center gap-2 sm:gap-2.5">
-            <div class="muted-panel rounded-xl border px-2.5 py-1.5 text-left" style="border-color: var(--border-subtle);">
-              <label for="currency-select" class="secondary-copy block text-[10px] font-semibold uppercase tracking-wider">Валюта</label>
-              <select
-                id="currency-select"
-                name="currency"
-                class="cursor-pointer bg-transparent text-xs font-bold focus:outline-none"
-              >
-                <option value="RUB">RUB (₽)</option>
-                <option value="ILS">ILS (₪)</option>
-                <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="THB">THB (฿)</option>
-                <option value="TRY">TRY (₺)</option>
-                <option value="AED">AED (дирхам)</option>
-                <option value="KZT">KZT (₸)</option>
-                <option value="GEL">GEL (₾)</option>
-                <option value="GBP">GBP (£)</option>
-              </select>
-            </div>
-            <div class="muted-panel rounded-xl px-3 py-1.5 text-right">
-              <div class="secondary-copy text-[10px] font-semibold uppercase tracking-wider">Total Bill</div>
-              <div id="bill-grand-total" class="text-base font-extrabold tabular-nums sm:text-xl">—</div>
-              <div id="bill-settlement-total" class="hidden text-[11px] font-bold tabular-nums text-emerald-600 dark:text-emerald-400"></div>
-            </div>
-            <div class="muted-panel rounded-xl px-2.5 py-1.5 text-right">
-              <div class="secondary-copy text-[10px] font-semibold uppercase tracking-wider">Settled</div>
-              <div id="bill-progress" class="text-xs font-bold tabular-nums text-emerald-600 dark:text-emerald-400 sm:text-sm">0 / 0</div>
-            </div>
-          </div>
+          <div id="header-metrics-wrap" class="hidden"></div>
         </div>
 
         <!-- Subtotal, Tax & Tip Selector Pills (shown when a bill is active) -->
@@ -269,18 +232,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
             Отсканируйте бумажный чек одним нажатием
           </h2>
           <p class="secondary-copy mx-auto mt-1.5 max-w-md text-xs leading-relaxed sm:text-sm">
-            Нажмите кнопку <strong>«Сканировать чек 📷»</strong> внизу экрана — откроется основная камера смартфона, а позиции, валюта и НДС распознаются автоматически.
+            Нажмите кнопку <strong>«Сканировать чек 📷»</strong> внизу экрана — откроется камера смартфона, а позиции и цены распознаются автоматически.
           </p>
-          <div class="mt-5 flex flex-wrap items-center justify-center gap-2.5">
-            <button
-              type="button"
-              id="empty-manual-bill-btn"
-              class="muted-panel cursor-pointer rounded-xl border px-4 py-2.5 text-xs font-bold transition hover:opacity-85"
-              style="border-color: var(--border-subtle);"
-            >
-              Заполнить позиции вручную
-            </button>
-          </div>
         </section>
 
         <!-- Active Bill Sections -->
@@ -435,76 +388,48 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
         </div>
       </div>
 
-      <!-- Image Preview Thumbnail + OCR Spinner (hidden until photo taken/selected) -->
+      <!-- OCR Status Banner (hidden until photo taken/selected; photo preview removed) -->
       <div id="receipt-preview-wrap" class="hidden rounded-xl border p-2.5 text-center" style="border-color: var(--border-subtle);">
-        <div class="receipt-preview-frame muted-panel rounded-lg">
-          <img
-            id="receipt-preview-img"
-            src="data:image/gif;base64,R0lGODlhAQABAAAAACw="
-            alt="Предпросмотр фото чека"
-            class="block max-h-48 max-w-full rounded-lg object-contain"
-          >
-        </div>
-        <div class="mt-2 inline-flex items-center justify-center gap-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+        <div class="inline-flex items-center justify-center gap-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
           <span id="receipt-ocr-spinner" class="ocr-spinner hidden" aria-hidden="true"></span>
           <span id="receipt-ocr-status" role="status" aria-live="polite"></span>
         </div>
       </div>
 
-      <!-- Title & Currency -->
-      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label for="new-bill-title-input" class="mb-1 block font-semibold">Название заведения (необязательно):</label>
-          <input
-            type="text"
-            id="new-bill-title-input"
-            name="title"
-            value=""
-            dir="auto"
-            placeholder="Определяется по чеку автоматически"
-            enterkeyhint="next"
-            class="bidi-plaintext splittel-input muted-panel w-full rounded-xl border px-3 py-2 font-medium"
-            style="border-color: var(--border-subtle);"
-          >
-        </div>
-        <div>
-          <label for="new-bill-currency-input" class="mb-1 block font-semibold">Валюта чека:</label>
-          <select
-            id="new-bill-currency-input"
-            name="currency"
-            class="splittel-input muted-panel w-full rounded-xl border px-2.5 py-2 font-bold"
-            style="border-color: var(--border-subtle);"
-          >
-            <option value="RUB" selected>RUB (₽ - Российский рубль)</option>
-            <option value="ILS">ILS (₪ - Новый израильский шекель)</option>
-            <option value="EUR">EUR (€ - Евро)</option>
-            <option value="USD">USD ($ - Доллар США)</option>
-            <option value="TRY">TRY (₺ - Турецкая лира)</option>
-            <option value="THB">THB (฿ - Тайский бат)</option>
-            <option value="AED">AED (Дирхам ОАЭ)</option>
-            <option value="KZT">KZT (₸ - Казахстанский тенге)</option>
-            <option value="GEL">GEL (₾ - Грузинский лари)</option>
-            <option value="GBP">GBP (£ - Британский фунт)</option>
-          </select>
-        </div>
-      </div>
-
+      <!-- Title & Hidden Currency -->
       <div>
-        <label for="new-bill-people-input" class="mb-1 block font-semibold">Участники (имена через запятую):</label>
+        <label for="new-bill-title-input" class="mb-1 block font-semibold">Название заведения (необязательно):</label>
         <input
           type="text"
-          id="new-bill-people-input"
-          name="people"
+          id="new-bill-title-input"
+          name="title"
           value=""
           dir="auto"
-          required
-          placeholder="Укажите имена участников через запятую"
+          placeholder="Определяется по чеку автоматически"
           enterkeyhint="next"
-          aria-describedby="new-bill-people-hint"
-          class="bidi-plaintext splittel-input muted-panel w-full rounded-xl border px-3 py-2 font-semibold"
+          class="bidi-plaintext splittel-input muted-panel w-full rounded-xl border px-3 py-2 font-medium"
           style="border-color: var(--border-subtle);"
         >
-        <span id="new-bill-people-hint" class="secondary-copy mt-1 block text-[11px]">Минимум один участник для расчёта долей.</span>
+        <input type="hidden" id="new-bill-currency-input" name="currency" value="RUB">
+      </div>
+
+      <!-- Participant Count Selector (1 to 10 buttons) -->
+      <div>
+        <label class="mb-1.5 block font-semibold">Количество участников:</label>
+        <div id="participant-count-pills" class="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Количество участников">
+          <button type="button" data-count="1" class="participant-count-btn cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500" aria-pressed="false">1</button>
+          <button type="button" data-count="2" class="participant-count-btn cursor-pointer rounded-xl border border-emerald-600 bg-emerald-600 text-white font-bold px-3 py-1.5 text-xs transition shadow-xs" aria-pressed="true">2</button>
+          <button type="button" data-count="3" class="participant-count-btn cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500" aria-pressed="false">3</button>
+          <button type="button" data-count="4" class="participant-count-btn cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500" aria-pressed="false">4</button>
+          <button type="button" data-count="5" class="participant-count-btn cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500" aria-pressed="false">5</button>
+          <button type="button" data-count="6" class="participant-count-btn cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500" aria-pressed="false">6</button>
+          <button type="button" data-count="7" class="participant-count-btn cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500" aria-pressed="false">7</button>
+          <button type="button" data-count="8" class="participant-count-btn cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500" aria-pressed="false">8</button>
+          <button type="button" data-count="9" class="participant-count-btn cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500" aria-pressed="false">9</button>
+          <button type="button" data-count="10" class="participant-count-btn cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500" aria-pressed="false">10</button>
+        </div>
+        <input type="hidden" id="new-bill-people-input" name="people" value="Человек 1, Человек 2" required>
+        <p class="secondary-copy mt-1 text-[11px]">Нажмите цифру, чтобы выбрать количество участников (выбрано: <strong id="selected-participant-count-text">2</strong>).</p>
       </div>
 
       <!-- Dish Lines / Items Textarea -->
@@ -1675,37 +1600,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
             contentDiv.appendChild(ul);
             contentDiv.appendChild(breakdown);
 
-            // Region 3: <footer> with "Mark as Paid" toggle + "Pay via Link / SBP QR" button
-            var footer = document.createElement("footer");
-            footer.className = "grid grid-cols-2 gap-2 pt-1";
-
-            var togglePaidBtn = document.createElement("button");
-            togglePaidBtn.type = "button";
-            togglePaidBtn.setAttribute("aria-pressed", isPaid ? "true" : "false");
-            togglePaidBtn.className = isPaid
-              ? "cursor-pointer rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 transition hover:opacity-85"
-              : "cursor-pointer rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-500 active:scale-[0.99]";
-            togglePaidBtn.textContent = isPaid ? "Paid ✓ (Undo)" : "Mark as Paid";
-            togglePaidBtn.addEventListener("click", function () {
-              handleTogglePaid(share, togglePaidBtn);
-            });
-
-            var payQrBtn = document.createElement("button");
-            payQrBtn.type = "button";
-            payQrBtn.className =
-              "muted-panel cursor-pointer rounded-xl border px-3 py-2 text-xs font-bold transition hover:opacity-85";
-            payQrBtn.style.borderColor = "var(--border-subtle)";
-            payQrBtn.textContent = "Pay via Link / SBP QR";
-            payQrBtn.addEventListener("click", function () {
-              openPaymentModal(share, currency);
-            });
-
-            footer.appendChild(togglePaidBtn);
-            footer.appendChild(payQrBtn);
-
             article.appendChild(header);
             article.appendChild(contentDiv);
-            article.appendChild(footer);
             cardsFrag.appendChild(article);
           });
 
@@ -1897,15 +1793,61 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
         });
       }
 
+      function setParticipantCount(num) {
+        var count = Math.max(1, Math.min(10, parseInt(num, 10) || 2));
+        var peopleArr = [];
+        for (var i = 1; i <= count; i++) {
+          peopleArr.push("Человек " + i);
+        }
+        var peopleInput = document.getElementById("new-bill-people-input");
+        if (peopleInput) {
+          peopleInput.value = peopleArr.join(", ");
+        }
+        var countText = document.getElementById("selected-participant-count-text");
+        if (countText) {
+          countText.textContent = String(count);
+        }
+        var countBtns = document.querySelectorAll(".participant-count-btn");
+        for (var b = 0; b < countBtns.length; b++) {
+          var btn = countBtns[b];
+          var bCount = parseInt(btn.getAttribute("data-count"), 10);
+          var isSelected = bCount === count;
+          btn.setAttribute("aria-pressed", isSelected ? "true" : "false");
+          if (isSelected) {
+            btn.className = "participant-count-btn cursor-pointer rounded-xl border border-emerald-600 bg-emerald-600 text-white font-bold px-3 py-1.5 text-xs transition shadow-xs";
+          } else {
+            btn.className = "participant-count-btn muted-panel cursor-pointer rounded-xl border px-3 py-1.5 text-xs font-bold transition hover:border-emerald-500";
+            btn.style.borderColor = "var(--border-subtle)";
+          }
+        }
+      }
+
       function openManualNewBillModal() {
         showFormError("");
         var curInput = document.getElementById("new-bill-currency-input");
         if (curInput && !curInput.value) {
           curInput.value = "RUB";
         }
+        var peopleInput = document.getElementById("new-bill-people-input");
+        var currentVal = (peopleInput && peopleInput.value) || "";
+        var currentLen = currentVal ? currentVal.split(",").length : 2;
+        setParticipantCount(currentLen || 2);
         if (newBillDialog && !newBillDialog.open && typeof newBillDialog.showModal === "function") {
           newBillDialog.showModal();
         }
+      }
+
+      var countPillsContainer = document.getElementById("participant-count-pills");
+      if (countPillsContainer) {
+        countPillsContainer.addEventListener("click", function (e) {
+          var target = e.target && e.target.closest(".participant-count-btn");
+          if (target) {
+            var countVal = target.getAttribute("data-count");
+            if (countVal) {
+              setParticipantCount(countVal);
+            }
+          }
+        });
       }
 
       var openNewBillBtn = document.getElementById("open-new-bill-btn");
@@ -1932,7 +1874,6 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
       var receiptGalleryInput = document.getElementById("receipt-gallery-input");
       var modalCameraTriggerBtn = document.getElementById("modal-camera-trigger-btn");
       var previewWrap = document.getElementById("receipt-preview-wrap");
-      var previewImg = document.getElementById("receipt-preview-img");
       var ocrSpinner = document.getElementById("receipt-ocr-spinner");
       var ocrStatus = document.getElementById("receipt-ocr-status");
 
@@ -2238,9 +2179,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
         if (!file) return;
         openManualNewBillModal();
 
-        if (previewWrap && previewImg) {
+        if (previewWrap) {
           previewWrap.classList.remove("hidden");
-          previewImg.src = URL.createObjectURL(file);
         }
 
         setOcrLoadingState(true);
