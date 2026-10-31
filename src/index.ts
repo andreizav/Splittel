@@ -42,7 +42,7 @@ async function bootstrap(): Promise<void> {
         `  OAuth 2.1 PRM: ${config.PUBLIC_BASE_URL}/.well-known/oauth-protected-resource`,
         `  Storage:       ${runtime.store.getActiveDriver()}`,
         `  R2 Bucket:     ${runtime.r2Storage.isConfigured() ? config.R2_BUCKET_NAME : "disabled (transient memory)"}`,
-        `  Gemini Vision: ${config.GEMINI_API_KEY.trim() ? "enabled (gemini-3.8-flash primary)" : "disabled (Tesseract LSTM only)"}`,
+        `  Gemini Vision: ${config.GEMINI_API_KEY.trim() ? "enabled (Gemini 2.0 Flash / Flash-Lite token-optimized)" : "disabled (Tesseract LSTM only)"}`,
         `  Scan Limit:    ${config.RECEIPT_SCAN_RATE_LIMIT_MAX} scans/min`,
         `==================================================================`,
       ].join("\n")

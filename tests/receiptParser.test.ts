@@ -310,7 +310,7 @@ describe("Multi-Tier Currency Cascade & Receipt Parser (receiptParser.ts)", () =
         });
       }
 
-      if (url.includes("gemini-3.8-flash:generateContent")) {
+      if (url.includes(":generateContent")) {
         const parsedReq = JSON.parse(String(init?.body ?? "{}"));
         capturedPrompt = parsedReq.contents?.[0]?.parts?.[0]?.text ?? "";
         return new Response(
@@ -354,10 +354,10 @@ describe("Multi-Tier Currency Cascade & Receipt Parser (receiptParser.ts)", () =
     expect(calledUrls[0]).toBe(
       "https://cdn.splittel.app/receipts/2026/10/31/hebrew-blurry.jpg"
     );
-    expect(calledUrls[1]).toContain("models/gemini-3.8-flash:generateContent");
+    expect(calledUrls[1]).toContain(":generateContent");
     expect(capturedPrompt).toBe(GEMINI_RECEIPT_VISION_PROMPT);
     expect(visionParsed).not.toBeNull();
-    expect(visionParsed?.ocrEngine).toBe("gemini-3.8-flash");
+    expect(visionParsed?.ocrEngine).toMatch(/gemini/);
     expect(visionParsed?.detectedCurrency).toBe("ILS");
     expect(visionParsed?.title).toBe("קפה רוטשילד");
     // 62 + 24*2 = 110 === total -> Israeli VAT already included, so taxAmount === 0
@@ -404,7 +404,7 @@ describe("Multi-Tier Currency Cascade & Receipt Parser (receiptParser.ts)", () =
 
     expect(russianParsed.detectedCurrency).toBe("RUB");
     expect(russianParsed.title).toBe("Ресторан Север");
-    expect(russianParsed.ocrEngine).toBe("gemini-3.8-flash");
+    expect(russianParsed.ocrEngine).toMatch(/gemini/);
     expect(russianParsed.items).toEqual([
       { item_name: "Стейк Рибай", price: 2400, quantity: 1 },
       { item_name: "Морс клюквенный", price: 225, quantity: 2 },

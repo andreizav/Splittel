@@ -1504,7 +1504,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
                 if (typeof bitmap.close === "function") bitmap.close();
                 return readAsDataUrlFallback(file);
               }
-              var maxEdge = 2200;
+              // Token & Mobile Bandwidth Optimization: downscale to max 1200px and 0.82 JPEG quality
+              var maxEdge = 1200;
               var scale = Math.max(w, h) > maxEdge ? maxEdge / Math.max(w, h) : 1;
               var targetW = Math.max(1, Math.round(w * scale));
               var targetH = Math.max(1, Math.round(h * scale));
@@ -1520,7 +1521,7 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
               ctx.fillRect(0, 0, targetW, targetH);
               ctx.drawImage(bitmap, 0, 0, targetW, targetH);
               if (typeof bitmap.close === "function") bitmap.close();
-              return canvas.toDataURL("image/jpeg", 0.92);
+              return canvas.toDataURL("image/jpeg", 0.82);
             } catch (_canvasErr) {
               if (bitmap && typeof bitmap.close === "function") bitmap.close();
               return readAsDataUrlFallback(file);

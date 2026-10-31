@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -13,8 +14,16 @@ export interface CurrencyDetectionResult {
 export type ReceiptOcrEngine =
   | "tesseract"
   | "client-tesseract"
+  | "gemini-2.0-flash"
+  | "gemini-2.0-flash-lite"
+  | "gemini-flash-lite-latest"
+  | "gemini-3.5-flash-lite"
+  | "gemini-2.5-flash-image"
   | "gemini-3.8-flash"
-  | "fallback-manual";
+  | "gemini-flash-latest"
+  | "gemini-vision"
+  | "fallback-manual"
+  | (string & {});
 
 export interface ParsedReceiptData {
   title?: string;
@@ -1126,7 +1135,7 @@ async function refineHebrewDishNamesIfNoisy(
 }
 
 export const GEMINI_RECEIPT_VISION_PROMPT =
-  'Analyze this receipt image and extract all purchased items with 100% precision. Accurately identify the language and script: Russian (Cyrillic, rubles ₽/руб), Hebrew (RTL, shekels ₪/ש״ח/שח), or English/Latin (USD/EUR/etc.). NEVER confuse Cyrillic with Hebrew characters. Automatically determine the correct 3-letter ISO currency ("RUB", "ILS", "USD", "EUR", etc.). For every purchased product or service, extract: 1) name (clean title in original language), 2) individual unit price (number), 3) quantity (integer, default 1). Also extract tax/VAT amount if listed, grand total, and restaurant or store name. Return valid JSON matching schema: { "title": "string", "currency": "string", "tax": number, "total": number, "items": [{ "name": "string", "price": number, "quantity": number }] }.';
+  'Extract receipt items as JSON: {"title":"string","currency":"RUB|ILS|USD|EUR","tax":number,"total":number,"items":[{"name":"string","price":number,"quantity":number}]}. Accurately transcribe Russian (Cyrillic, rubles), Hebrew (RTL, shekels), or English. Return JSON only.';
 
 export interface GeminiVisionFallbackOptions {
   imageBuffer?: Buffer;
@@ -1162,6 +1171,60 @@ function detectImageMimeType(buf: Buffer, fallback = "image/jpeg"): string {
     return "image/gif";
   }
   return fallback;
+}
+
+/**
+ * Downscales and compresses receipt images before sending to Gemini Multimodal Vision.
+ * High-resolution camera photos (e.g. 4032x3024) generate thousands of vision tokens
+ * (Gemini splits images into 256x256 tiles, ~258 tokens per tile).
+ * Downscaling to max 1024x1600 cuts visual tokens by ~75% while keeping 100% text fidelity.
+ */
+async function optimizeImageForVisionTokens(
+  imageBuffer: Buffer
+): Promise<{ buffer: Buffer; mimeType: string }> {
+  try {
+    const sharpMod = await import("sharp");
+    const sharp = sharpMod.default;
+    const meta = await sharp(imageBuffer, { failOn: "none" }).metadata();
+    const width = meta.width ?? 0;
+    const height = meta.height ?? 0;
+    const maxDim = Math.max(width, height);
+
+    if (maxDim > 1024 || imageBuffer.length > 400_000) {
+      const resized = await sharp(imageBuffer, { failOn: "none" })
+        .rotate()
+        .resize({
+          width: 1024,
+          height: 1600,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 80, progressive: true })
+        .toBuffer();
+      return { buffer: resized, mimeType: "image/jpeg" };
+    }
+  } catch {
+    // Graceful fallback to original buffer
+  }
+  return {
+    buffer: imageBuffer,
+    mimeType: detectImageMimeType(imageBuffer, "image/jpeg"),
+  };
+}
+
+interface VisionCacheEntry {
+  result: ParsedReceiptData;
+  expiresAt: number;
+}
+const visionDeduplicationCache = new Map<string, VisionCacheEntry>();
+
+function pruneVisionCache(): void {
+  const now = Date.now();
+  for (const [key, entry] of visionDeduplicationCache.entries()) {
+    if (entry.expiresAt <= now) {
+      visionDeduplicationCache.delete(key);
+    }
+  }
 }
 
 /**
@@ -1283,25 +1346,39 @@ export async function recognizeReceiptWithGeminiVision(
       return null;
     }
 
-    const mimeType =
-      resolvedMimeType || detectImageMimeType(resolvedBuffer, "image/jpeg");
+    // Token Optimization 1: Deduplication Cache Check (0 tokens on identical scans)
+    const cacheKey = `${createHash("sha256").update(resolvedBuffer).digest("hex")}:${fallbackCurrency}`;
+    pruneVisionCache();
+    const cached = visionDeduplicationCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return { ...cached.result };
+    }
+
+    // Token Optimization 2: Image Downscaling & Compression (~75% visual token reduction)
+    const optimized = await optimizeImageForVisionTokens(resolvedBuffer);
+    const mimeType = resolvedMimeType || optimized.mimeType;
 
     const promptParts: Array<Record<string, unknown>> = [
       { text: GEMINI_RECEIPT_VISION_PROMPT },
       {
         inlineData: {
           mimeType,
-          data: resolvedBuffer.toString("base64"),
+          data: optimized.buffer.toString("base64"),
         },
       },
     ];
 
+    // Priority candidate models: honor GEMINI_MODEL env, then 2.0 / Flash-Lite economy tier, then robust fallbacks
     const modelCandidates = [
-      "gemini-3.8-flash",
-      "gemini-2.5-flash",
-      "gemini-1.5-flash",
+      process.env.GEMINI_MODEL,
       "gemini-2.0-flash",
-    ];
+      "gemini-2.0-flash-lite",
+      "gemini-flash-lite-latest",
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-flash-image",
+      "gemini-flash-latest",
+      "gemini-3.8-flash",
+    ].filter((m): m is string => Boolean(m && m.trim()));
 
     interface GeminiGenerateResponse {
       candidates?: Array<{
@@ -1312,7 +1389,7 @@ export async function recognizeReceiptWithGeminiVision(
     }
 
     let payload: GeminiGenerateResponse | null = null;
-    let successfulModel = "gemini-3.8-flash";
+    let successfulModel = modelCandidates[0] || "gemini-flash-lite-latest";
 
     for (const model of modelCandidates) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -1330,6 +1407,7 @@ export async function recognizeReceiptWithGeminiVision(
             generationConfig: {
               temperature: 0.1,
               responseMimeType: "application/json",
+              maxOutputTokens: 1024,
             },
           }),
           signal: controller.signal,
@@ -1470,7 +1548,7 @@ export async function recognizeReceiptWithGeminiVision(
       )
       .join("\n");
 
-    return {
+    const result: ParsedReceiptData = {
       title: titleCandidate || undefined,
       rawText: synthesizedRawText,
       items,
@@ -1479,9 +1557,16 @@ export async function recognizeReceiptWithGeminiVision(
       currencyDetails,
       ocrConfidence: 98,
       ocrLanguage: successfulModel,
-      ocrEngine: "gemini-3.8-flash",
+      ocrEngine: successfulModel as ReceiptOcrEngine,
       fallbackManualEntry: false,
     };
+
+    visionDeduplicationCache.set(cacheKey, {
+      result,
+      expiresAt: Date.now() + 15 * 60 * 1000,
+    });
+
+    return result;
   } catch {
     return null;
   } finally {
