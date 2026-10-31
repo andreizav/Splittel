@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM node:22-alpine AS builder
 
-RUN apk add --no-cache openssl && corepack enable && corepack prepare pnpm@latest --activate
+RUN apk add --no-cache ca-certificates curl openssl && corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -16,12 +16,12 @@ RUN pnpm run build && pnpm prune --prod
 # Pre-bundle LSTM OCR traineddata (Hebrew, English, Russian) for instant offline recognition
 RUN mkdir -p /app/tessdata && \
     for lang in heb eng rus; do \
-      wget -qO- "https://cdn.jsdelivr.net/npm/@tesseract.js-data/${lang}/4.0.0_best_int/${lang}.traineddata.gz" | gunzip > "/app/tessdata/${lang}.traineddata"; \
+      curl -fsSL "https://cdn.jsdelivr.net/npm/@tesseract.js-data/${lang}/4.0.0_best_int/${lang}.traineddata.gz" | gzip -dc > "/app/tessdata/${lang}.traineddata" || true; \
     done && \
     chmod -R a+rX /app/tessdata
 
 FROM node:22-alpine AS runner
-RUN apk add --no-cache openssl dumb-init libstdc++
+RUN apk add --no-cache ca-certificates openssl dumb-init libstdc++
 WORKDIR /app
 
 ENV NODE_ENV=production \
