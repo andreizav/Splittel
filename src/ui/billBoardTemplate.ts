@@ -342,6 +342,7 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     aria-labelledby="new-bill-title"
     class="splittel-modal m-auto w-[min(94vw,34rem)] rounded-2xl p-5 shadow-2xl"
   >
+    <div class="modal-grab-handle sm:hidden" aria-hidden="true"></div>
     <div class="flex items-start justify-between gap-2 border-b pb-3" style="border-color: var(--border-subtle);">
       <div>
         <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Новый чек</div>
@@ -522,6 +523,7 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     aria-labelledby="payment-qr-title"
     class="splittel-modal m-auto w-[min(92vw,23rem)] rounded-2xl p-5 shadow-xl"
   >
+    <div class="modal-grab-handle sm:hidden" aria-hidden="true"></div>
     <div class="flex items-start justify-between gap-2">
       <div>
         <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Instant Transfer</div>
@@ -574,6 +576,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     aria-labelledby="confirm-dialog-title"
     class="splittel-modal m-auto w-[min(92vw,24rem)] rounded-2xl p-5 shadow-xl"
   >
+    <div class="modal-grab-handle sm:hidden" aria-hidden="true"></div>
+
     <h2 id="confirm-dialog-title" class="text-base font-bold">Confirm Payment Status</h2>
     <p id="confirm-dialog-copy" class="secondary-copy mt-2 text-sm"></p>
     <div class="mt-5 flex justify-end gap-2.5">
@@ -602,6 +606,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     aria-labelledby="google-login-title"
     class="splittel-modal m-auto w-[min(94vw,28rem)] rounded-2xl p-5 shadow-2xl"
   >
+    <div class="modal-grab-handle sm:hidden" aria-hidden="true"></div>
+
     <div class="flex items-start justify-between gap-2 border-b pb-3" style="border-color: var(--border-subtle);">
       <div class="flex items-center gap-2.5">
         <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
@@ -685,6 +691,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     aria-labelledby="user-history-title"
     class="splittel-modal m-auto w-[min(94vw,34rem)] rounded-2xl p-5 shadow-2xl"
   >
+    <div class="modal-grab-handle sm:hidden" aria-hidden="true"></div>
+
     <div class="flex items-start justify-between gap-2 border-b pb-3" style="border-color: var(--border-subtle);">
       <div>
         <div class="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">История счетов</div>
@@ -715,6 +723,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     aria-labelledby="set-name-title"
     class="splittel-modal m-auto w-[min(92vw,24rem)] rounded-2xl p-5 shadow-2xl"
   >
+    <div class="modal-grab-handle sm:hidden" aria-hidden="true"></div>
+
     <div class="flex items-start justify-between gap-2 border-b pb-3" style="border-color: var(--border-subtle);">
       <div>
         <h2 id="set-name-title" class="text-base font-bold">Как вас зовут?</h2>
@@ -1337,7 +1347,7 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
           (bill.raw_items || []).forEach(function (dish) {
             var row = document.createElement("div");
             row.className =
-              "flex flex-col justify-between gap-2.5 py-3 sm:flex-row sm:items-center rounded-xl px-2 transition hover:bg-slate-500/5 cursor-pointer";
+              "flex flex-col justify-between gap-3 py-3.5 sm:flex-row sm:items-center rounded-2xl px-3 transition hover:bg-slate-500/5 active:bg-slate-500/10 cursor-pointer";
 
             // Left column: Dish name, quantity & price + Claimed Badges
             var left = document.createElement("div");
@@ -1367,7 +1377,7 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
               dish.claimedBy.forEach(function (claimant, cIdx) {
                 var cBadge = document.createElement("span");
                 cBadge.className =
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border " +
+                  "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold border " +
                   getClaimantBadgeClass(claimant.userName, cIdx);
                 var cIcon = document.createElement("span");
                 cIcon.setAttribute("aria-hidden", "true");
@@ -1397,8 +1407,8 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
             var claimBtn = document.createElement("button");
             claimBtn.type = "button";
             claimBtn.className = isClaimedByMe
-              ? "cursor-pointer inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-500 active:scale-95"
-              : "cursor-pointer inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition hover:bg-emerald-500/10 hover:border-emerald-500 active:scale-95";
+              ? "cursor-pointer inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-500 active:scale-95"
+              : "cursor-pointer inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition hover:bg-emerald-500/10 hover:border-emerald-500 active:scale-95";
             claimBtn.style.borderColor = isClaimedByMe ? "transparent" : "var(--border-subtle)";
             claimBtn.textContent = isClaimedByMe ? "✓ Я ел(а)" : "+ Я ел(а)";
             claimBtn.setAttribute("aria-pressed", isClaimedByMe ? "true" : "false");

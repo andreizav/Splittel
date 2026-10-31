@@ -2,19 +2,19 @@
 @source "./billBoardTemplate.ts";
 
 :root {
-  --surface-canvas-light: #f8fafc;
-  --surface-canvas-dark: #090d16;
+  --surface-canvas-light: #f2f2f7; /* iOS System Grouped Background */
+  --surface-canvas-dark: #000000; /* iOS OLED Pure Black Background */
   --surface-card-light: #ffffff;
-  --surface-card-dark: #111827;
-  --surface-muted-light: #f1f5f9;
-  --surface-muted-dark: #1e293b;
-  --border-subtle-light: #e2e8f0;
-  --border-subtle-dark: #1f2937;
-  --text-primary-light: #0f172a;
-  --text-primary-dark: #f8fafc;
-  --text-secondary-light: #475569;
-  --text-secondary-dark: #94a3b8;
-  --brand-accent-light: #059669;
+  --surface-card-dark: #1c1c1e; /* iOS Secondary System Grouped Background */
+  --surface-muted-light: #e5e5ea;
+  --surface-muted-dark: #2c2c2e;
+  --border-subtle-light: rgba(60, 60, 67, 0.12);
+  --border-subtle-dark: rgba(235, 235, 245, 0.14);
+  --text-primary-light: #000000;
+  --text-primary-dark: #ffffff;
+  --text-secondary-light: #8e8e93;
+  --text-secondary-dark: #8e8e93;
+  --brand-accent-light: #10b981;
   --brand-accent-dark: #34d399;
 
   --surface-canvas: var(--surface-canvas-light);
@@ -79,7 +79,18 @@ body {
   block-size: 100%;
   background-color: var(--surface-canvas);
   color: var(--text-primary);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Roboto", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -108,9 +119,11 @@ body {
 .bill-header-dock {
   flex: 0 0 auto;
   z-index: 20;
-  background-color: color-mix(in oklab, var(--surface-canvas) 92%, transparent);
-  backdrop-filter: blur(10px);
+  background-color: color-mix(in oklab, var(--surface-canvas) 85%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-block-end: 1px solid var(--border-subtle);
+  padding-block-start: max(0.625rem, env(safe-area-inset-top, 0.625rem));
 }
 
 .bill-scroll-area {
@@ -120,7 +133,7 @@ body {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
-  padding-block-end: calc(6rem + env(safe-area-inset-bottom, 0px));
+  padding-block-end: calc(6.5rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* Graceful fallback when soft keyboard shrinks iframe height aggressively */
@@ -148,10 +161,10 @@ body {
   pointer-events: none;
   padding-inline: 1rem;
   padding-block-start: 0.5rem;
-  padding-block-end: calc(0.875rem + env(safe-area-inset-bottom, 0px));
+  padding-block-end: max(1rem, env(safe-area-inset-bottom, 1rem));
   background: linear-gradient(
     to top,
-    color-mix(in oklab, var(--surface-canvas) 94%, transparent) 35%,
+    color-mix(in oklab, var(--surface-canvas) 96%, transparent) 45%,
     transparent 100%
   );
 }
@@ -161,36 +174,37 @@ body {
   position: relative;
   overflow: clip;
   display: inline-flex;
-  align-items: safe center;
+  align-items: center;
   justify-content: center;
   gap: 0.625rem;
-  min-block-size: 3.5rem; /* 56px minimum touch target */
-  padding-inline: 1.625rem;
+  min-block-size: 3.5rem; /* 56px minimum touch target for iOS & Material 3 */
+  padding-inline: 1.75rem;
   padding-block: 0.875rem;
   border-radius: 9999px;
-  border: 1px solid rgb(255 255 255 / 0.24);
-  background: linear-gradient(135deg, #059669 0%, #10b981 52%, #0d9488 100%);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  background: linear-gradient(135deg, #059669 0%, #10b981 50%, #0d9488 100%);
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 1.0625rem;
   font-weight: 800;
   letter-spacing: -0.01em;
   line-height: 1.2;
   cursor: pointer;
+  touch-action: manipulation;
   box-shadow:
-    0 12px 28px -6px rgb(5 150 105 / 0.52),
-    0 4px 10px -2px rgb(15 23 42 / 0.24);
-  transition: transform 140ms ease, box-shadow 160ms ease, filter 160ms ease;
+    0 12px 30px -4px rgb(5 150 105 / 0.5),
+    0 4px 12px -2px rgb(15 23 42 / 0.2);
+  transition: transform 120ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 160ms ease, filter 160ms ease;
 }
 
 .scan-camera-fab:hover {
   filter: brightness(1.05);
   box-shadow:
-    0 16px 32px -6px rgb(5 150 105 / 0.6),
-    0 6px 14px -2px rgb(15 23 42 / 0.28);
+    0 16px 36px -4px rgb(5 150 105 / 0.6),
+    0 6px 14px -2px rgb(15 23 42 / 0.25);
 }
 
 .scan-camera-fab:active {
-  transform: scale(0.97);
+  transform: scale(0.93);
 }
 
 .scan-camera-fab:focus-visible {
@@ -323,7 +337,7 @@ body {
 /* Summary Cards Grid with Subgrid row alignment across sibling <article> cards */
 .check-matrix-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
   gap: 1rem;
 }
 
@@ -334,11 +348,18 @@ body {
   grid-template-rows: auto 1fr auto;
   grid-template-rows: subgrid;
   background-color: var(--surface-card);
-  border: 2px solid var(--border-subtle);
-  border-radius: 1rem;
-  padding: 1.125rem;
-  row-gap: 0.875rem;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  row-gap: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 140ms ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  .person-card {
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  }
 }
 
 .person-card[data-status="PAID"] {
@@ -352,18 +373,89 @@ body {
   }
 }
 
+/* Participant Count Selector (1 to 10) Buttons */
+.participant-count-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 2.75rem; /* 44px minimum touch target for iOS / Material 3 */
+  min-block-size: 2.75rem;
+  border-radius: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.participant-count-btn:active {
+  transform: scale(0.92);
+}
+
+.participant-count-btn[aria-pressed="true"] {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  border-color: #059669;
+  color: #ffffff;
+  box-shadow: 0 4px 14px -2px rgb(5 150 105 / 0.45);
+}
+
+.participant-count-btn[aria-pressed="false"] {
+  background-color: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.participant-count-btn[aria-pressed="false"]:hover {
+  border-color: var(--brand-accent);
+}
+
+/* iOS Sheet & Android Bottom Sheet Presentation for Modals */
 dialog.splittel-modal {
   background-color: var(--surface-card);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
-  max-block-size: calc(100dvh - 1.5rem);
+  max-block-size: calc(100dvh - 2.5rem);
   overflow-y: auto;
   overscroll-behavior: contain;
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
 }
 
 dialog.splittel-modal::backdrop {
-  background-color: rgb(15 23 42 / 0.55);
-  backdrop-filter: blur(2px);
+  background-color: rgb(0 0 0 / 0.52);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Mobile Bottom Sheet Presentation for iOS / Android */
+@media (max-width: 640px) {
+  dialog.splittel-modal {
+    position: fixed;
+    inset-block-end: 0;
+    inset-inline: 0;
+    margin-block-end: 0;
+    margin-block-start: auto;
+    inline-size: 100vw;
+    max-inline-size: 100vw;
+    border-radius: 1.75rem 1.75rem 0 0;
+    border-inline: none;
+    border-block-end: none;
+    padding-inline: 1.25rem;
+    padding-block-start: 1rem;
+    padding-block-end: calc(1.75rem + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.35);
+  }
+}
+
+.modal-grab-handle {
+  inline-size: 2.5rem;
+  block-size: 0.3125rem;
+  border-radius: 9999px;
+  background-color: color-mix(in oklab, var(--text-secondary) 32%, transparent);
+  margin-inline: auto;
+  margin-block-end: 0.875rem;
 }
 
 /* Per-line RTL/LTR bidirectional isolation for Hebrew + Latin/Cyrillic receipt text */
