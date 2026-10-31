@@ -1,4 +1,5 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { decodeJwt } from "jose";
 import express, {
   type Express,
   type NextFunction,
@@ -643,6 +644,116 @@ export async function createSplittelRuntime(
   app.post("/api/user/history", accountAuth, handleUserHistoryPost);
   app.get("/api/account/history", accountAuth, handleUserHistoryGet);
   app.post("/api/account/history", accountAuth, handleUserHistoryPost);
+
+  // ===========================================================================
+  // GOOGLE WEB SIGN-IN & CURRENT USER PROFILE ENDPOINTS
+  // ===========================================================================
+  app.post("/api/auth/google", async (req: Request, res: Response) => {
+    try {
+      const { credential, email, name, clientId } = (req.body ?? {}) as {
+        credential?: string;
+        email?: string;
+        name?: string;
+        clientId?: string;
+      };
+
+      let userEmail = typeof email === "string" ? email.trim() : "";
+      let userName = typeof name === "string" ? name.trim() : "";
+      let userSub = "";
+
+      // 1. Decode Google ID Token if Google Identity Services credential was passed
+      if (typeof credential === "string" && credential.includes(".")) {
+        try {
+          const decoded = decodeJwt(credential);
+          if (decoded && typeof decoded.sub === "string") {
+            userSub = `google_${decoded.sub}`;
+            if (!userEmail && typeof decoded.email === "string") {
+              userEmail = decoded.email;
+            }
+            if (!userName && typeof decoded.name === "string") {
+              userName = decoded.name;
+            }
+          }
+        } catch {
+          // fallback to email / name
+        }
+      }
+
+      if (!userEmail && !userSub) {
+        res.status(400).json({
+          error: "invalid_request",
+          message: "Укажите Google email или войдите через аккаунт Google",
+        });
+        return;
+      }
+
+      if (!userSub) {
+        const emailHash = createHash("sha256")
+          .update(userEmail.toLowerCase())
+          .digest("hex")
+          .slice(0, 20);
+        userSub = `google_${emailHash}`;
+      }
+
+      if (!userName) {
+        userName = userEmail.split("@")[0] || "Пользователь Google";
+      }
+
+      const token = await oauthProvider.issueAccessToken({
+        clientId: clientId || "splittel-web",
+        subject: userSub,
+        email: userEmail,
+        name: userName,
+        scopes: [...SPLITTEL_SCOPES],
+        expiresInSeconds: 30 * 24 * 3600, // 30-day web session
+      });
+
+      res.json({
+        success: true,
+        token,
+        user: {
+          id: userSub,
+          email: userEmail,
+          name: userName,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({
+        error: "auth_failed",
+        message:
+          err instanceof Error ? err.message : "Не удалось авторизоваться через Google",
+      });
+    }
+  });
+
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ authenticated: false, isGuest: true });
+      return;
+    }
+    const token = authHeader.slice(7).trim();
+    try {
+      const authInfo = await oauthProvider.verifyAccessToken(token);
+      const sub =
+        typeof authInfo.extra?.sub === "string"
+          ? authInfo.extra.sub
+          : authInfo.clientId;
+      const history = await store.getUserHistory(sub);
+      res.json({
+        authenticated: true,
+        isGuest: false,
+        user: {
+          id: sub,
+          email: authInfo.extra?.email || `${sub}@users.splittel.app`,
+          name: authInfo.extra?.name || "Пользователь Google",
+        },
+        billsCount: history.length,
+      });
+    } catch {
+      res.status(401).json({ authenticated: false, isGuest: true });
+    }
+  });
 
   app.get(
     "/api/account/payment-profile",

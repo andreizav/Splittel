@@ -316,4 +316,39 @@ describe("Multi-Tenant Session Isolation & OAuth Role Segmentation (billIsolatio
       expect(res.body.error).toBe("bill_not_found");
     });
   });
+
+  describe("Google Auth & WhatsApp Sharing Features", () => {
+    it("authenticates via POST /api/auth/google and issues valid Bearer token", async () => {
+      const authRes = await request(httpsServer)
+        .post("/api/auth/google")
+        .send({
+          email: "andrey@gmail.com",
+          name: "Андрей",
+        });
+
+      expect(authRes.status).toBe(200);
+      expect(authRes.body.success).toBe(true);
+      expect(authRes.body.token).toBeTypeOf("string");
+      expect(authRes.body.user.email).toBe("andrey@gmail.com");
+      expect(authRes.body.user.name).toBe("Андрей");
+
+      const meRes = await request(httpsServer)
+        .get("/api/auth/me")
+        .set("Authorization", `Bearer ${authRes.body.token}`);
+
+      expect(meRes.status).toBe(200);
+      expect(meRes.body.authenticated).toBe(true);
+      expect(meRes.body.user.email).toBe("andrey@gmail.com");
+    });
+
+    it("serves UI with WhatsApp sharing button and Google login dialogs", async () => {
+      const uiRes = await request(httpsServer).get("/ui/bill-board");
+      expect(uiRes.status).toBe(200);
+      expect(uiRes.text).toContain('id="share-whatsapp-btn"');
+      expect(uiRes.text).toContain("В WhatsApp 💬");
+      expect(uiRes.text).toContain('id="google-login-dialog"');
+      expect(uiRes.text).toContain('id="user-history-dialog"');
+      expect(uiRes.text).toContain('id="set-name-dialog"');
+    });
+  });
 });

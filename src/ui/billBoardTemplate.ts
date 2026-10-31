@@ -93,13 +93,24 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
               </button>
               <button
                 type="button"
+                id="share-whatsapp-btn"
+                class="${hasInitialBill || effectiveBillId ? "" : "hidden "}cursor-pointer inline-flex items-center gap-1.5 rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white px-3 py-0.5 text-xs font-bold shadow-xs transition active:scale-95"
+                title="Открыть WhatsApp и отправить ссылку друзьям для выбора блюд"
+              >
+                <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12.031 2C6.495 2 2 6.495 2 12.031c0 1.768.46 3.493 1.332 5.006L2 22l5.127-1.344a10.015 10.015 0 0 0 4.904 1.282h.005c5.535 0 10.03-4.496 10.03-10.031 0-2.68-1.043-5.2-2.937-7.094A10.007 10.007 0 0 0 12.031 2zm0 18.326h-.004a8.318 8.318 0 0 1-4.24-1.162l-.304-.18-3.153.827.842-3.073-.198-.315a8.337 8.337 0 0 1-1.277-4.423c0-4.594 3.738-8.332 8.336-8.332 2.226 0 4.318.868 5.892 2.443a8.307 8.307 0 0 1 2.441 5.891c0 4.595-3.738 8.333-8.336 8.333zm4.568-6.237c-.25-.125-1.48-.73-1.71-.813-.23-.083-.396-.125-.562.125-.167.25-.646.813-.792.98-.146.166-.292.187-.542.062s-1.06-.391-2.019-1.246c-.747-.666-1.251-1.488-1.397-1.738-.146-.25-.016-.385.11-.51.113-.112.25-.292.375-.438.125-.146.167-.25.25-.417.084-.167.042-.313-.02-.438s-.563-1.355-.772-1.855c-.203-.488-.41-.422-.563-.43l-.479-.008c-.167 0-.438.063-.667.313-.23.25-.875.855-.875 2.084s.896 2.418 1.021 2.585c.125.166 1.763 2.693 4.272 3.777.597.258 1.064.412 1.428.528.6.191 1.146.164 1.577.1.48-.072 1.48-.605 1.688-1.189.208-.584.208-1.084.146-1.189-.062-.104-.229-.167-.479-.292z"/>
+                </svg>
+                <span>В WhatsApp 💬</span>
+              </button>
+              <button
+                type="button"
                 id="copy-share-link-btn"
-                class="${hasInitialBill || effectiveBillId ? "" : "hidden "}cursor-pointer inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold transition hover:bg-emerald-500/10 hover:border-emerald-500"
+                class="${hasInitialBill || effectiveBillId ? "" : "hidden "}cursor-pointer inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition hover:bg-emerald-500/10 hover:border-emerald-500"
                 style="border-color: var(--border-subtle);"
-                title="Скопировать ссылку на чек для совместного выбора блюд"
+                title="Скопировать ссылку на чек"
               >
                 <span>🔗</span>
-                <span>Поделиться чеком</span>
+                <span>Копировать ссылку</span>
               </button>
             </div>
             <h1 id="bill-title" dir="auto" class="bidi-plaintext fluid-bill-title truncate font-bold tracking-tight">${initialTitle
@@ -194,18 +205,48 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     <!-- 2. SCROLLABLE CONTENT CONTAINER (Smooth nested scroll inside Gemini/Search sandboxed iframes) -->
     <main id="app-root" class="bill-scroll-area px-3.5 py-4 sm:px-6 sm:py-5">
       <div class="mx-auto max-w-5xl space-y-4">
-        <!-- Guest Authorization Banner (Section 4.1) -->
-        ${
-          isGuest
-            ? `<div id="guest-auth-banner" class="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-900 dark:text-emerald-200">
-                <div class="flex items-center gap-2">
-                  <span class="text-base" aria-hidden="true">👋</span>
-                  <span>Вы в режиме <strong>Гостя</strong>. Войдите через Google, чтобы сохранять историю ваших счетов и чеков.</span>
-                </div>
-                <a href="${options.apiBaseUrl.replace(/\/+$/, "")}/.well-known/oauth-authorization-server" class="shrink-0 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1 font-bold text-white shadow-xs transition">Войти через Google</a>
-              </div>`
-            : ""
-        }
+        <!-- Auth Status Container (Guest vs Logged In) -->
+        <div id="auth-status-container" class="space-y-2">
+          <div id="guest-auth-banner" class="${isGuest ? "flex" : "hidden"} flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-900 dark:text-emerald-200">
+            <div class="flex items-center gap-2">
+              <span class="text-base" aria-hidden="true">👋</span>
+              <span>Вы в режиме <strong>Гостя</strong>. Войдите через Google, чтобы сохранять историю ваших счетов и чеков.</span>
+            </div>
+            <button
+              type="button"
+              id="open-google-login-btn"
+              class="cursor-pointer shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3.5 py-1.5 font-bold text-white shadow-xs transition active:scale-95"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#ffffff"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#ffffff"/>
+              </svg>
+              <span>Войти через Google</span>
+            </button>
+          </div>
+          <div id="logged-user-banner" class="${isGuest ? "hidden" : "flex"} flex-wrap items-center justify-between gap-3 px-4 py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 text-xs text-blue-900 dark:text-blue-200">
+            <div class="flex items-center gap-2">
+              <span class="text-base" aria-hidden="true">👤</span>
+              <span>Вы вошли как: <strong id="logged-user-name">Пользователь</strong> (<span id="logged-user-email">email</span>)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                id="open-user-history-btn"
+                class="cursor-pointer rounded-lg bg-blue-600 hover:bg-blue-500 px-3 py-1 font-bold text-white shadow-xs transition"
+              >
+                📜 Мои счёта
+              </button>
+              <button
+                type="button"
+                id="logout-btn"
+                class="cursor-pointer rounded-lg border border-blue-400 hover:bg-blue-500/20 px-2.5 py-1 font-semibold transition"
+              >
+                Выйти
+              </button>
+            </div>
+          </div>
+        </div>
 
         <!-- Live Status Banner -->
         <div
@@ -252,7 +293,12 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
             <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 id="matrix-heading" class="text-sm font-bold sm:text-base">Itemized Check Matrix</h2>
-                <p class="secondary-copy text-xs">Tap avatar chips to toggle who shared each item.</p>
+                <p class="secondary-copy text-xs">Нажмите на блюдо или «+ Я ел(а)», чтобы отметить его за собой.</p>
+              </div>
+              <div id="participant-indicator-wrap" class="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs">
+                <span>👤 Отмечаете как:</span>
+                <strong id="active-participant-name" class="text-emerald-700 dark:text-emerald-300">Гость</strong>
+                <button type="button" id="edit-participant-name-btn" class="cursor-pointer underline text-[11px] text-emerald-600 hover:text-emerald-500 ml-1">изменить</button>
               </div>
             </div>
             <div id="dish-matrix-list" class="divide-y" style="border-color: var(--border-subtle);"></div>
@@ -262,6 +308,44 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
           <section aria-labelledby="summary-cards-heading" class="space-y-3">
             <h2 id="summary-cards-heading" class="text-sm font-bold sm:text-base">Summary per Person</h2>
             <div id="cards-grid" class="check-matrix-grid"></div>
+          </section>
+
+          <!-- WhatsApp Sharing Call-to-Action Card -->
+          <section
+            aria-labelledby="share-cta-heading"
+            class="surface-card rounded-2xl border p-4 text-center sm:p-6 shadow-xs"
+            style="border-color: var(--border-subtle);"
+          >
+            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#25D366]/15 text-2xl" aria-hidden="true">
+              💬
+            </div>
+            <h3 id="share-cta-heading" class="mt-2 text-sm font-bold sm:text-base">
+              Разделите этот счёт с друзьями в WhatsApp
+            </h3>
+            <p class="secondary-copy mx-auto mt-1 max-w-md text-xs leading-relaxed">
+              Отправьте ссылку друзьям в WhatsApp — они откроют её со своих смартфонов и сразу смогут отметить блюда, которые заказывали.
+            </p>
+            <div class="mt-3.5 flex flex-wrap items-center justify-center gap-2.5">
+              <button
+                type="button"
+                id="bottom-whatsapp-share-btn"
+                class="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white px-5 py-2.5 text-xs sm:text-sm font-bold shadow-xs transition active:scale-95"
+              >
+                <svg class="h-4 w-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12.031 2C6.495 2 2 6.495 2 12.031c0 1.768.46 3.493 1.332 5.006L2 22l5.127-1.344a10.015 10.015 0 0 0 4.904 1.282h.005c5.535 0 10.03-4.496 10.03-10.031 0-2.68-1.043-5.2-2.937-7.094A10.007 10.007 0 0 0 12.031 2zm0 18.326h-.004a8.318 8.318 0 0 1-4.24-1.162l-.304-.18-3.153.827.842-3.073-.198-.315a8.337 8.337 0 0 1-1.277-4.423c0-4.594 3.738-8.332 8.336-8.332 2.226 0 4.318.868 5.892 2.443a8.307 8.307 0 0 1 2.441 5.891c0 4.595-3.738 8.333-8.336 8.333zm4.568-6.237c-.25-.125-1.48-.73-1.71-.813-.23-.083-.396-.125-.562.125-.167.25-.646.813-.792.98-.146.166-.292.187-.542.062s-1.06-.391-2.019-1.246c-.747-.666-1.251-1.488-1.397-1.738-.146-.25-.016-.385.11-.51.113-.112.25-.292.375-.438.125-.146.167-.25.25-.417.084-.167.042-.313-.02-.438s-.563-1.355-.772-1.855c-.203-.488-.41-.422-.563-.43l-.479-.008c-.167 0-.438.063-.667.313-.23.25-.875.855-.875 2.084s.896 2.418 1.021 2.585c.125.166 1.763 2.693 4.272 3.777.597.258 1.064.412 1.428.528.6.191 1.146.164 1.577.1.48-.072 1.48-.605 1.688-1.189.208-.584.208-1.084.146-1.189-.062-.104-.229-.167-.479-.292z"/>
+                </svg>
+                <span>Отправить в WhatsApp 💬</span>
+              </button>
+              <button
+                type="button"
+                id="bottom-copy-share-btn"
+                class="muted-panel cursor-pointer inline-flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs sm:text-sm font-semibold transition hover:opacity-85"
+                style="border-color: var(--border-subtle);"
+              >
+                <span>🔗</span>
+                <span>Скопировать ссылку</span>
+              </button>
+            </div>
           </section>
 
           <!-- Native Contextual Recommendation & CPA Comparison Card (strictly live data; hidden if null) -->
@@ -586,6 +670,166 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
     </div>
   </dialog>
 
+  <!-- Light-Dismiss Google Sign-In Dialog -->
+  <dialog
+    id="google-login-dialog"
+    closedby="any"
+    aria-labelledby="google-login-title"
+    class="splittel-modal m-auto w-[min(94vw,28rem)] rounded-2xl p-5 shadow-2xl"
+  >
+    <div class="flex items-start justify-between gap-2 border-b pb-3" style="border-color: var(--border-subtle);">
+      <div class="flex items-center gap-2.5">
+        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+          <svg class="h-5 w-5" viewBox="0 0 24 24">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+          </svg>
+        </div>
+        <div>
+          <h2 id="google-login-title" class="text-base font-bold">Вход через Google</h2>
+          <p class="secondary-copy text-xs">Сохранение истории счетов и чеков</p>
+        </div>
+      </div>
+      <form method="dialog">
+        <button
+          type="submit"
+          aria-label="Закрыть окно"
+          class="muted-panel cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-bold hover:opacity-80"
+        >
+          ✕
+        </button>
+      </form>
+    </div>
+
+    <div class="mt-4 space-y-4 text-xs">
+      <p class="secondary-copy leading-relaxed">
+        Войдите через Google, чтобы ваши чеки сохранялись в личной истории, были доступны на всех ваших устройствах и открывались по защищённому OAuth 2.1 протоколу.
+      </p>
+
+      <form id="google-login-form" class="space-y-3" novalidate>
+        <div id="google-login-error" class="hidden rounded-lg bg-rose-500/10 border border-rose-500/30 p-2.5 text-rose-600 dark:text-rose-400 font-medium"></div>
+
+        <div>
+          <label for="google-email-input" class="secondary-copy mb-1 block font-semibold uppercase tracking-wider text-[10px]">
+            Google Email:
+          </label>
+          <input
+            type="email"
+            id="google-email-input"
+            required
+            placeholder="например: user@gmail.com"
+            class="muted-panel w-full rounded-xl border px-3 py-2 text-xs font-medium"
+            style="border-color: var(--border-subtle);"
+          >
+        </div>
+
+        <div>
+          <label for="google-name-input" class="secondary-copy mb-1 block font-semibold uppercase tracking-wider text-[10px]">
+            Ваше имя:
+          </label>
+          <input
+            type="text"
+            id="google-name-input"
+            placeholder="например: Андрей"
+            class="muted-panel w-full rounded-xl border px-3 py-2 text-xs font-medium"
+            style="border-color: var(--border-subtle);"
+          >
+        </div>
+
+        <button
+          type="submit"
+          id="google-login-submit-btn"
+          class="cursor-pointer flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 text-xs font-bold shadow-xs transition active:scale-98"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#ffffff"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#ffffff"/>
+          </svg>
+          <span>Войти через Google Аккаунт</span>
+        </button>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Light-Dismiss User History Dialog -->
+  <dialog
+    id="user-history-dialog"
+    closedby="any"
+    aria-labelledby="user-history-title"
+    class="splittel-modal m-auto w-[min(94vw,34rem)] rounded-2xl p-5 shadow-2xl"
+  >
+    <div class="flex items-start justify-between gap-2 border-b pb-3" style="border-color: var(--border-subtle);">
+      <div>
+        <div class="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">История счетов</div>
+        <h2 id="user-history-title" class="mt-0.5 text-base font-bold">Мои сохранённые чеки</h2>
+      </div>
+      <form method="dialog">
+        <button
+          type="submit"
+          aria-label="Закрыть окно"
+          class="muted-panel cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-bold hover:opacity-80"
+        >
+          ✕
+        </button>
+      </form>
+    </div>
+
+    <div class="mt-4 space-y-3 text-xs">
+      <div id="user-history-list" class="divide-y max-h-80 overflow-y-auto" style="border-color: var(--border-subtle);">
+        <p class="secondary-copy py-6 text-center">Загрузка истории…</p>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Light-Dismiss Participant Name Dialog -->
+  <dialog
+    id="set-name-dialog"
+    closedby="any"
+    aria-labelledby="set-name-title"
+    class="splittel-modal m-auto w-[min(92vw,24rem)] rounded-2xl p-5 shadow-2xl"
+  >
+    <div class="flex items-start justify-between gap-2 border-b pb-3" style="border-color: var(--border-subtle);">
+      <div>
+        <h2 id="set-name-title" class="text-base font-bold">Как вас зовут?</h2>
+        <p class="secondary-copy text-xs">Друзья увидят ваше имя рядом с отмеченными блюдами</p>
+      </div>
+      <form method="dialog">
+        <button
+          type="submit"
+          aria-label="Закрыть окно"
+          class="muted-panel cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-bold hover:opacity-80"
+        >
+          ✕
+        </button>
+      </form>
+    </div>
+
+    <form id="set-name-form" class="mt-4 space-y-3 text-xs" novalidate>
+      <div>
+        <label for="participant-name-input" class="secondary-copy mb-1 block font-semibold uppercase tracking-wider text-[10px]">
+          Ваше имя:
+        </label>
+        <input
+          type="text"
+          id="participant-name-input"
+          required
+          placeholder="например: Давид, Катя, Миша"
+          class="muted-panel w-full rounded-xl border px-3 py-2 text-xs font-bold"
+          style="border-color: var(--border-subtle);"
+        >
+      </div>
+
+      <button
+        type="submit"
+        class="cursor-pointer w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-xs font-bold shadow-xs transition active:scale-98"
+      >
+        Сохранить имя
+      </button>
+    </form>
+  </dialog>
+
   <script id="splittel-bootstrap" type="application/json">${bootstrapPayload}</script>
   <script>
     (function () {
@@ -618,9 +862,15 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
       var confirmDialog = document.getElementById("confirm-dialog");
       var paymentQrDialog = document.getElementById("payment-qr-dialog");
       var newBillDialog = document.getElementById("new-bill-dialog");
+      var googleLoginDialog = document.getElementById("google-login-dialog");
+      var userHistoryDialog = document.getElementById("user-history-dialog");
+      var setNameDialog = document.getElementById("set-name-dialog");
       attachDialogLightDismissFallback(confirmDialog);
       attachDialogLightDismissFallback(paymentQrDialog);
       attachDialogLightDismissFallback(newBillDialog);
+      attachDialogLightDismissFallback(googleLoginDialog);
+      attachDialogLightDismissFallback(userHistoryDialog);
+      attachDialogLightDismissFallback(setNameDialog);
 
       // 3. Hydrate initial state
       var bootstrapEl = document.getElementById("splittel-bootstrap");
@@ -696,38 +946,84 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
         return CLAIMANT_COLORS[idx];
       }
 
-      function toggleDishClaim(dishIdOrName) {
-        if (!currentBill || !currentBill.bill_id) return;
-        if (!currentUserName || !currentUserName.trim()) {
-          var entered = window.prompt("Введите ваше имя для отметки блюд в счёте:", "Гость");
+      function updateParticipantDisplay() {
+        var nameEl = document.getElementById("active-participant-name");
+        if (nameEl) {
+          nameEl.textContent = currentUserName || "Гость";
+        }
+      }
+
+      var onParticipantNameSavedCallback = null;
+      function promptParticipantName(callback) {
+        var dlg = document.getElementById("set-name-dialog");
+        var input = document.getElementById("participant-name-input");
+        if (input) {
+          input.value = currentUserName && currentUserName.indexOf("Гость-") !== 0 ? currentUserName : "";
+        }
+        if (dlg && typeof dlg.showModal === "function") {
+          onParticipantNameSavedCallback = callback;
+          dlg.showModal();
+          if (input) setTimeout(function () { input.focus(); }, 50);
+        } else {
+          var entered = window.prompt("Введите ваше имя для отметки блюд в счёте:", currentUserName || "Гость");
           if (entered && entered.trim()) {
             currentUserName = entered.trim();
-            if (safeStorage) {
-              try {
-                safeStorage.setItem("splittel_user_name", currentUserName);
-              } catch (_e) {}
-            }
-          } else {
-            currentUserName = "Гость-" + (currentUserId ? currentUserId.slice(-4) : "1");
-            if (safeStorage) {
-              try {
-                safeStorage.setItem("splittel_user_name", currentUserName);
-              } catch (_e) {}
-            }
+            if (safeStorage) safeStorage.setItem("splittel_user_name", currentUserName);
+            updateParticipantDisplay();
           }
+          if (typeof callback === "function") callback();
+        }
+      }
+
+      var setNameForm = document.getElementById("set-name-form");
+      if (setNameForm) {
+        setNameForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var input = document.getElementById("participant-name-input");
+          var entered = input ? input.value.trim() : "";
+          if (entered) {
+            currentUserName = entered;
+            if (safeStorage) safeStorage.setItem("splittel_user_name", currentUserName);
+            updateParticipantDisplay();
+          }
+          var dlg = document.getElementById("set-name-dialog");
+          if (dlg) dlg.close();
+          if (typeof onParticipantNameSavedCallback === "function") {
+            var cb = onParticipantNameSavedCallback;
+            onParticipantNameSavedCallback = null;
+            cb();
+          }
+        });
+      }
+
+      var editParticipantBtn = document.getElementById("edit-participant-name-btn");
+      if (editParticipantBtn) {
+        editParticipantBtn.addEventListener("click", function () {
+          promptParticipantName(function () {
+            showStatusBanner("Имя обновлено: " + currentUserName);
+          });
+        });
+      }
+
+      function executeClaimRequest(dishIdOrName) {
+        if (!currentBill || !currentBill.bill_id) return;
+        var url = (apiBaseUrl || "") + "/api/bills/" + encodeURIComponent(currentBill.bill_id) + "/claim";
+        var headers = {
+          "Content-Type": "application/json",
+          "X-Splittel-Anon-User-Id": currentUserId
+        };
+        var token = safeStorage ? safeStorage.getItem("splittel_oauth_token") : null;
+        if (token) {
+          headers["Authorization"] = "Bearer " + token;
         }
 
-        var url = (apiBaseUrl || "") + "/api/bills/" + encodeURIComponent(currentBill.bill_id) + "/claim";
         fetch(url, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Splittel-Anon-User-Id": currentUserId
-          },
+          headers: headers,
           body: JSON.stringify({
             item_id: dishIdOrName,
             user_id: currentUserId,
-            user_name: currentUserName,
+            user_name: currentUserName || "Гость",
             action: "toggle"
           })
         })
@@ -739,13 +1035,24 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
             if (data && data.bill) {
               currentBill = data.bill;
               renderAll(currentBill);
-              showStatusBanner("Выбор обновлён");
+              showStatusBanner("Выбор блюда сохранён");
             }
           })
           .catch(function (err) {
             console.error("Co-claim error:", err);
             showStatusBanner("Не удалось обновить выбор блюда");
           });
+      }
+
+      function toggleDishClaim(dishIdOrName) {
+        if (!currentBill || !currentBill.bill_id) return;
+        if (!currentUserName || !currentUserName.trim() || currentUserName.indexOf("Гость-") === 0) {
+          promptParticipantName(function () {
+            executeClaimRequest(dishIdOrName);
+          });
+          return;
+        }
+        executeClaimRequest(dishIdOrName);
       }
 
       // 4. MCP Apps JSON-RPC 2.0 postMessage bridge
@@ -1024,6 +1331,7 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
         var headerMetricsEl = document.getElementById("header-metrics-wrap");
         var headerBreakdownEl = document.getElementById("header-breakdown-bar");
         var shareBtnEl = document.getElementById("copy-share-link-btn");
+        var waBtnEl = document.getElementById("share-whatsapp-btn");
 
         if (emptyEl) emptyEl.classList.toggle("hidden", Boolean(hasBill));
         if (activeEl) activeEl.classList.toggle("hidden", !hasBill);
@@ -1036,6 +1344,7 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
           headerBreakdownEl.classList.toggle("flex", Boolean(hasBill));
         }
         if (shareBtnEl) shareBtnEl.classList.toggle("hidden", !hasBill);
+        if (waBtnEl) waBtnEl.classList.toggle("hidden", !hasBill);
       }
 
       // Render Itemized Interactive Matrix + Summary Cards safely via DOM APIs
@@ -2175,9 +2484,18 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
               taxInput && taxInput.value !== "" ? taxInput.value : 0
             );
 
+            var createHeaders = { "Content-Type": "application/json" };
+            var activeToken = safeStorage ? safeStorage.getItem("splittel_oauth_token") : null;
+            if (activeToken) {
+              createHeaders["Authorization"] = "Bearer " + activeToken;
+            }
+            if (currentUserId) {
+              createHeaders["x-splittel-anon-user-id"] = currentUserId;
+            }
+
             var createRes = await fetch((apiBaseUrl || "") + "/api/bills/new", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: createHeaders,
               body: JSON.stringify({
                 title: title,
                 currency: currency,
@@ -2228,27 +2546,301 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
         });
       }
 
-      // Share Link button (Section 3: Shareable Co-Claiming and Real-Time Link Sharing)
-      var shareLinkBtn = document.getElementById("copy-share-link-btn");
-      if (shareLinkBtn) {
-        shareLinkBtn.addEventListener("click", function () {
-          var activeBillId =
-            (currentBill && currentBill.bill_id) ||
-            bootstrap.billId ||
-            new URLSearchParams(window.location.search).get("bill_id") ||
-            "";
-          var baseUrl = (apiBaseUrl || window.location.origin).replace(new RegExp("/+$"), "");
-          var shareUrl = baseUrl + "/ui/bill-board?bill_id=" + encodeURIComponent(activeBillId);
+      // WhatsApp & Deep Link Sharing (Section 3: Shareable Co-Claiming & Real-Time WhatsApp Sharing)
+      function openWhatsAppShare() {
+        var activeBillId =
+          (currentBill && currentBill.bill_id) ||
+          bootstrap.billId ||
+          new URLSearchParams(window.location.search).get("bill_id") ||
+          "";
 
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(shareUrl).then(function () {
-              showStatusBanner("Ссылка на счёт скопирована: " + shareUrl);
-            }).catch(function () {
+        var baseUrl = (apiBaseUrl || window.location.origin).replace(new RegExp("/+$"), "");
+        var shareUrl = baseUrl + "/ui/bill-board?bill_id=" + encodeURIComponent(activeBillId);
+
+        var title = currentBill && currentBill.title ? currentBill.title : "Общий счёт";
+        var totalStr = "";
+        if (currentBill && currentBill.grand_total) {
+          totalStr = " на сумму " + currentBill.grand_total + " " + (currentBill.currency || "₪");
+        }
+
+        var message =
+          "Привет! Делим счёт «" +
+          title +
+          "»" +
+          totalStr +
+          " в Splittel 🧾\\n\\n" +
+          "Открой ссылку со своего телефона и отметь блюда, которые заказывал(а) ты:\\n" +
+          shareUrl;
+
+        var waUrl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(message);
+        window.open(waUrl, "_blank");
+        showStatusBanner("Открываем WhatsApp для выбора друзей…");
+      }
+
+      function copyShareUrl() {
+        var activeBillId =
+          (currentBill && currentBill.bill_id) ||
+          bootstrap.billId ||
+          new URLSearchParams(window.location.search).get("bill_id") ||
+          "";
+        var baseUrl = (apiBaseUrl || window.location.origin).replace(new RegExp("/+$"), "");
+        var shareUrl = baseUrl + "/ui/bill-board?bill_id=" + encodeURIComponent(activeBillId);
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard
+            .writeText(shareUrl)
+            .then(function () {
+              showStatusBanner("Ссылка на счёт скопирована в буфер обмена!");
+            })
+            .catch(function () {
               showStatusBanner("Ссылка на счёт: " + shareUrl);
             });
-          } else {
-            showStatusBanner("Ссылка на счёт: " + shareUrl);
+        } else {
+          showStatusBanner("Ссылка на счёт: " + shareUrl);
+        }
+      }
+
+      var headerWhatsAppBtn = document.getElementById("share-whatsapp-btn");
+      if (headerWhatsAppBtn) {
+        headerWhatsAppBtn.addEventListener("click", openWhatsAppShare);
+      }
+
+      var bottomWhatsAppBtn = document.getElementById("bottom-whatsapp-share-btn");
+      if (bottomWhatsAppBtn) {
+        bottomWhatsAppBtn.addEventListener("click", openWhatsAppShare);
+      }
+
+      var headerCopyBtn = document.getElementById("copy-share-link-btn");
+      if (headerCopyBtn) {
+        headerCopyBtn.addEventListener("click", copyShareUrl);
+      }
+
+      var bottomCopyBtn = document.getElementById("bottom-copy-share-btn");
+      if (bottomCopyBtn) {
+        bottomCopyBtn.addEventListener("click", copyShareUrl);
+      }
+
+      // Google Sign-In & Registered User Profile Handlers
+      var googleLoginBtn = document.getElementById("open-google-login-btn");
+      var googleLoginDlg = document.getElementById("google-login-dialog");
+      var googleLoginForm = document.getElementById("google-login-form");
+      var googleLoginError = document.getElementById("google-login-error");
+      var openUserHistoryBtn = document.getElementById("open-user-history-btn");
+      var userHistoryDlg = document.getElementById("user-history-dialog");
+      var logoutBtn = document.getElementById("logout-btn");
+
+      function updateAuthUI(user) {
+        var guestBanner = document.getElementById("guest-auth-banner");
+        var loggedBanner = document.getElementById("logged-user-banner");
+        var nameSpan = document.getElementById("logged-user-name");
+        var emailSpan = document.getElementById("logged-user-email");
+
+        if (user && user.email) {
+          if (guestBanner) guestBanner.classList.add("hidden");
+          if (loggedBanner) {
+            loggedBanner.classList.remove("hidden");
+            loggedBanner.classList.add("flex");
           }
+          if (nameSpan) nameSpan.textContent = user.name || user.email;
+          if (emailSpan) emailSpan.textContent = user.email;
+        } else {
+          if (loggedBanner) {
+            loggedBanner.classList.add("hidden");
+            loggedBanner.classList.remove("flex");
+          }
+          if (guestBanner) guestBanner.classList.remove("hidden");
+        }
+      }
+
+      function checkSessionAuth() {
+        var token = safeStorage ? safeStorage.getItem("splittel_oauth_token") : null;
+        if (!token) {
+          updateAuthUI(null);
+          return;
+        }
+        fetch((apiBaseUrl || "") + "/api/auth/me", {
+          headers: { Authorization: "Bearer " + token }
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("unauthorized");
+            return r.json();
+          })
+          .then(function (data) {
+            if (data && data.authenticated && data.user) {
+              currentUserId = data.user.id;
+              currentUserName = data.user.name;
+              if (safeStorage) {
+                safeStorage.setItem("splittel_user_id", currentUserId);
+                safeStorage.setItem("splittel_user_name", currentUserName);
+              }
+              updateParticipantDisplay();
+              updateAuthUI(data.user);
+            } else {
+              if (safeStorage) safeStorage.removeItem("splittel_oauth_token");
+              updateAuthUI(null);
+            }
+          })
+          .catch(function () {
+            if (safeStorage) safeStorage.removeItem("splittel_oauth_token");
+            updateAuthUI(null);
+          });
+      }
+
+      if (googleLoginBtn && googleLoginDlg) {
+        googleLoginBtn.addEventListener("click", function () {
+          if (googleLoginError) googleLoginError.classList.add("hidden");
+          googleLoginDlg.showModal();
+        });
+      }
+
+      if (googleLoginForm) {
+        googleLoginForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var emailInput = document.getElementById("google-email-input");
+          var nameInput = document.getElementById("google-name-input");
+          var submitBtn = document.getElementById("google-login-submit-btn");
+
+          var email = emailInput ? emailInput.value.trim() : "";
+          var name = nameInput ? nameInput.value.trim() : "";
+
+          if (!email) {
+            if (googleLoginError) {
+              googleLoginError.textContent = "Пожалуйста, укажите ваш Google email";
+              googleLoginError.classList.remove("hidden");
+            }
+            return;
+          }
+
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Вход…";
+          }
+
+          fetch((apiBaseUrl || "") + "/api/auth/google", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, name: name })
+          })
+            .then(function (res) {
+              return res.json().then(function (data) {
+                if (!res.ok) throw new Error(data.message || data.error || "Ошибка авторизации");
+                return data;
+              });
+            })
+            .then(function (data) {
+              if (safeStorage) {
+                safeStorage.setItem("splittel_oauth_token", data.token);
+                safeStorage.setItem("splittel_user_id", data.user.id);
+                safeStorage.setItem("splittel_user_name", data.user.name);
+                safeStorage.setItem("splittel_user_email", data.user.email);
+              }
+              currentUserId = data.user.id;
+              currentUserName = data.user.name;
+              updateParticipantDisplay();
+              updateAuthUI(data.user);
+              if (googleLoginDlg) googleLoginDlg.close();
+              showStatusBanner("Добро пожаловать, " + data.user.name + "!");
+
+              if (currentBill && currentBill.bill_id) {
+                fetch((apiBaseUrl || "") + "/api/user/history", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + data.token
+                  },
+                  body: JSON.stringify({ bill_id: currentBill.bill_id })
+                }).catch(function () {});
+              }
+            })
+            .catch(function (err) {
+              if (googleLoginError) {
+                googleLoginError.textContent = err.message || "Ошибка авторизации";
+                googleLoginError.classList.remove("hidden");
+              }
+            })
+            .finally(function () {
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Войти через Google Аккаунт";
+              }
+            });
+        });
+      }
+
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", function () {
+          if (safeStorage) {
+            safeStorage.removeItem("splittel_oauth_token");
+            safeStorage.removeItem("splittel_user_email");
+          }
+          updateAuthUI(null);
+          showStatusBanner("Вы вышли из аккаунта (режим Гостя).");
+        });
+      }
+
+      if (openUserHistoryBtn && userHistoryDlg) {
+        openUserHistoryBtn.addEventListener("click", function () {
+          userHistoryDlg.showModal();
+          var listEl = document.getElementById("user-history-list");
+          if (!listEl) return;
+          listEl.innerHTML = '<p class="secondary-copy py-6 text-center">Загрузка счетов…</p>';
+
+          var token = safeStorage ? safeStorage.getItem("splittel_oauth_token") : null;
+          fetch((apiBaseUrl || "") + "/api/user/history", {
+            headers: { Authorization: "Bearer " + token }
+          })
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (data) {
+              var bills = (data && data.bills) || [];
+              if (bills.length === 0) {
+                listEl.innerHTML =
+                  '<p class="secondary-copy py-6 text-center">У вас пока нет сохранённых счетов.<br>Отсканируйте чек или создайте расчёт!</p>';
+                return;
+              }
+              listEl.innerHTML = "";
+              bills.forEach(function (b) {
+                var item = document.createElement("div");
+                item.className = "flex items-center justify-between gap-3 py-3 border-b";
+                item.style.borderColor = "var(--border-subtle)";
+                var dateStr = b.created_at
+                  ? new Date(b.created_at).toLocaleDateString("ru-RU", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric"
+                    })
+                  : "";
+                item.innerHTML =
+                  '<div class="min-w-0 flex-1">' +
+                  '<h4 class="font-bold truncate text-xs sm:text-sm">' +
+                  (b.title || "Чек") +
+                  "</h4>" +
+                  '<p class="secondary-copy text-[11px]">' +
+                  dateStr +
+                  " • " +
+                  (b.people ? b.people.join(", ") : "") +
+                  "</p>" +
+                  "</div>" +
+                  '<div class="shrink-0 text-right">' +
+                  '<span class="font-bold text-xs sm:text-sm text-emerald-600 dark:text-emerald-400">' +
+                  b.grand_total +
+                  " " +
+                  (b.currency || "₪") +
+                  "</span>" +
+                  '<a href="' +
+                  (apiBaseUrl || "") +
+                  "/ui/bill-board?bill_id=" +
+                  encodeURIComponent(b.bill_id) +
+                  '" class="block mt-1 text-[11px] font-bold text-blue-600 hover:underline">Открыть ➔</a>' +
+                  "</div>";
+                listEl.appendChild(item);
+              });
+            })
+            .catch(function () {
+              listEl.innerHTML =
+                '<p class="text-rose-500 py-4 text-center">Не удалось загрузить историю счетов</p>';
+            });
         });
       }
 
@@ -2491,6 +3083,9 @@ export function renderBillBoardHtml(options: RenderBillBoardOptions): string {
           activeBillEventSource = es;
         } catch (_e) {}
       }
+
+      updateParticipantDisplay();
+      checkSessionAuth();
 
       if (currentBill) {
         renderAll(currentBill);
