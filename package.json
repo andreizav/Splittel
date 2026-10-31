@@ -1,0 +1,70 @@
+{
+  "name": "@splittel/remote-mcp-server",
+  "version": "1.0.0",
+  "description": "Production-ready Remote MCP Server for Splittel (@Splittel) — Intelligent bill-splitting & expense distribution agent for Google Connected Apps (Gemini & Search)",
+  "type": "module",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build:css": "tailwindcss -i src/ui/styles.css -o src/ui/compiled.css --minify",
+    "build": "pnpm run build:css && tsc -p tsconfig.json && mkdir -p dist/ui dist/db && cp src/ui/compiled.css dist/ui/compiled.css && cp src/db/schema.sql dist/db/schema.sql",
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev --name init_enterprise_schema",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --fileParallelism=false",
+    "test:watch": "vitest",
+    "cert:generate": "bash scripts/generate-cert.sh",
+    "inspect:tools": "NODE_TLS_REJECT_UNAUTHORIZED=0 pnpx @modelcontextprotocol/inspector --cli --server-url https://localhost:3443/mcp --method tools/list --strict",
+    "inspect:ui": "NODE_TLS_REJECT_UNAUTHORIZED=0 pnpx @modelcontextprotocol/inspector --cli --server-url https://localhost:3443/mcp --method resources/read --uri ui://splittel/bill-board",
+    "inspect:web": "NODE_TLS_REJECT_UNAUTHORIZED=0 pnpx @modelcontextprotocol/inspector --server-url https://localhost:3443/mcp",
+    "deploy:cloud-run": "bash scripts/deploy-cloud-run.sh"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "google-connected-apps",
+    "gemini",
+    "google-search",
+    "bill-splitting",
+    "oauth-2.1",
+    "mcp-apps"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1160.0",
+    "@modelcontextprotocol/ext-apps": "^1.7.5",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.2",
+    "helmet": "^8.3.0",
+    "ioredis": "^6.0.0",
+    "jose": "^6.2.14",
+    "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.5",
+    "tesseract.js": "^7.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/supertest": "^7.2.1",
+    "prisma": "^6.19.3",
+    "supertest": "^7.3.1",
+    "tailwindcss": "^4.1.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0"
+  }
+}

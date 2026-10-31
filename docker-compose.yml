@@ -1,0 +1,25 @@
+services:
+  splittel-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: splittel-mcp-server
+    network_mode: host
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3443
+      HTTPS_ENABLED: "true"
+      TRUST_PROXY: "true"
+      PUBLIC_BASE_URL: https://localhost:3443
+      DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/splittel
+      REDIS_URL: redis://localhost:6379
+      QDRANT_URL: http://localhost:6333
+      STORAGE_DRIVER: auto
+      OAUTH_ISSUER_URL: https://localhost:3443
+      OAUTH_AUDIENCE: https://localhost:3443/mcp
+      OAUTH_JWT_SECRET: splittel-prod-grade-hmac-sha256-signing-key-2026
+      UI_ACTION_SECRET: splittel-sandboxed-iframe-action-hmac-key-2026
+      OAUTH_REQUIRE_AUTH_FOR_TOOLS: "true"
+    restart: unless-stopped
+

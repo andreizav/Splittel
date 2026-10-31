@@ -1,0 +1,92 @@
+// Splittel (@Splittel) Enterprise Prisma Schema (PostgreSQL + PostGIS)
+// Default local OrbStack connection: postgresql://postgres:postgrespassword@localhost:5432/splittel
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, postgis]
+}
+
+enum BillStatus {
+  OPEN
+  SETTLED
+  CANCELLED
+
+  @@map("bill_status")
+}
+
+enum ItemCategory {
+  mains
+  drinks
+  desserts
+  starters
+  other
+
+  @@map("item_category")
+}
+
+enum SettlementStatus {
+  PENDING
+  PAID
+
+  @@map("settlement_status")
+}
+
+model Bill {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  external_bill_id  String?          @unique
+  created_at        DateTime         @default(now()) @db.Timestamptz(6)
+  total_amount      BigInt
+  currency          String           @default("RUB") @db.VarChar(8)
+  status            BillStatus       @default(OPEN)
+  organizer_user_id String?
+  image_url         String?
+  receipt_items     ReceiptItem[]
+  debt_settlements  DebtSettlement[]
+
+  @@index([organizer_user_id], map: "idx_bills_organizer_user_id")
+  @@index([created_at(sort: Desc)], map: "idx_bills_created_at")
+  @@map("bills")
+}
+
+model ReceiptItem {
+  id              String                                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bill_id         String                                  @db.Uuid
+  item_name_raw   String
+  item_name_clean String
+  category        ItemCategory                            @default(other)
+  price_cents     BigInt
+  currency        String                                  @db.VarChar(8)
+  restaurant_name String?
+  location        Unsupported("geometry(Point, 4326)")?
+  created_at      DateTime                                @default(now()) @db.Timestamptz(6)
+  bill            Bill                                    @relation(fields: [bill_id], references: [id], onDelete: Cascade)
+
+  @@index([bill_id], map: "idx_receipt_items_bill_id")
+  @@index([currency, category], map: "idx_receipt_items_currency_category")
+  @@index([location], map: "idx_receipt_items_location_gist", type: Gist)
+  @@map("receipt_items")
+}
+
+model DebtSettlement {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  external_txn_id String?          @unique
+  bill_id         String           @db.Uuid
+  debtor_name     String
+  creditor_name   String
+  amount_cents    BigInt
+  status          SettlementStatus @default(PENDING)
+  payment_link    String
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  bill            Bill             @relation(fields: [bill_id], references: [id], onDelete: Cascade)
+
+  @@index([bill_id], map: "idx_debt_settlements_bill_id")
+  @@index([status], map: "idx_debt_settlements_status")
+  @@map("debt_settlements")
+}
+

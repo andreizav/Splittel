@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: splittel-mcp
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      - key: HTTPS_ENABLED
+        value: "false"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: STORAGE_DRIVER
+        value: auto
+      - key: DATABASE_URL
+        value: postgresql://postgres:postgrespassword@localhost:5432/splittel
+      - key: REDIS_URL
+        value: redis://localhost:6379
+      - key: QDRANT_URL
+        value: http://localhost:6333
+      - key: OAUTH_JWT_SECRET
+        generateValue: true
+      - key: UI_ACTION_SECRET
+        generateValue: true
+

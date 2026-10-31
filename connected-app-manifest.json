@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "app_name": "Splittel",
+  "handle": "@Splittel",
+  "category": "Finance / Productivity",
+  "description": "Мгновенный расчет общих чеков, расходов и долгов с распознаванием фото, умным учетом чаевых и интерактивной карточкой оплаты прямо в диалоге.",
+  "primary_integration_route": "Remote MCP Server (HTTPS / SSE)",
+  "capabilities": [
+    "Распознавание и деление чеков по фото и тексту",
+    "Расчет оптимальной матрицы долгов для групп и поездок",
+    "Генерация платежных карт и прямых ссылок на перевод"
+  ],
+  "example_prompts": [
+    "@Splittel посчитай этот чек на троих",
+    "@Splittel кто сколько должен за вчерашний ужин?",
+    "Раздели расходы на поездку в сервисе Splittel"
+  ],
+  "required_urls": {
+    "terms_of_service": "https://splittel-production.up.railway.app/terms",
+    "privacy_policy": "https://splittel-production.up.railway.app/privacy",
+    "local_terms_of_service": "https://localhost:3443/terms",
+    "local_privacy_policy": "https://localhost:3443/privacy"
+  },
+  "server_instructions": "Splittel is an intelligent bill-splitting and group expense distribution agent. Use Splittel whenever the user provides a receipt image, asks to split a check, calculate shared travel expenses, or generate debt payment links. \nRules:\n1. Always call `parse_and_split_bill` first when a receipt or item list is provided.\n2. Automatically split shared items (e.g., bottle of wine, shared appetizers) proportionally among tagged individuals.\n3. Calculate tax (VAT) and tips as a percentage applied proportionally to each person's individual subtotal.\n4. Present final breakdowns via the interactive UI widget resource `ui://splittel/bill-board`.\n5. When a check or trip expense is in a foreign currency (e.g., EUR, USD, TRY, THB) and transfers are settled in another currency (e.g., RUB), pass `currency` and `settlement_currency` (plus optional `exchange_rate`) for automatic cent-exact FX conversion.",
+  "mcp": {
+    "streamable_http_endpoint": "https://splittel-production.up.railway.app/mcp",
+    "sse_endpoint": "https://splittel-production.up.railway.app/sse",
+    "ui_resource_uri": "ui://splittel/bill-board",
+    "ui_web_endpoint": "https://splittel-production.up.railway.app/ui/bill-board",
+    "local_streamable_http_endpoint": "https://localhost:3443/mcp",
+    "local_sse_endpoint": "https://localhost:3443/sse",
+    "tools": [
+      {
+        "name": "parse_and_split_bill",
+        "annotations": { "readOnlyHint": true },
+        "auth_tier": "free_zero_auth",
+        "meta": { "ui": { "resourceUri": "ui://splittel/bill-board" } }
+      },
+      {
+        "name": "calculate_group_balance",
+        "annotations": { "readOnlyHint": true },
+        "auth_tier": "free_zero_auth"
+      },
+      {
+        "name": "generate_payment_card",
+        "annotations": { "readOnlyHint": true },
+        "auth_tier": "free_zero_auth"
+      },
+      {
+        "name": "settle_up_action",
+        "annotations": {
+          "destructiveHint": true,
+          "requiresExplicitUserConfirmation": true
+        },
+        "auth_tier": "account_linking_required"
+      }
+    ]
+  },
+  "oauth2_security": {
+    "protocol": "OAuth 2.1 Authorization Code Flow with PKCE",
+    "code_challenge_method": "S256",
+    "scopes": ["openid", "profile", "email"],
+    "free_tier_zero_auth": true,
+    "account_linking_triggers": [
+      "settle_up_action",
+      "saving_expense_history",
+      "personal_payment_details_sbp_stripe"
+    ],
+    "google_auth_platform": {
+      "client_id": "google-connected-apps",
+      "use_this_client_for_an_ai_powered_agent": true
+    },
+    "protected_resource_metadata_url": "https://splittel-production.up.railway.app/.well-known/oauth-protected-resource",
+    "authorization_server_metadata_url": "https://splittel-production.up.railway.app/.well-known/oauth-authorization-server",
+    "oidc_userinfo_url": "https://splittel-production.up.railway.app/userinfo",
+    "local_protected_resource_metadata_url": "https://localhost:3443/.well-known/oauth-protected-resource"
+  }
+}
+
